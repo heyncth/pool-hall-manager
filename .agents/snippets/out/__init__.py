@@ -13,3 +13,4 @@ from .group_theater import *
 from .delight_destroyer import *
 from .program_hens import *
 from .regret_motorcycle import *
+from .cough_puddles import *
