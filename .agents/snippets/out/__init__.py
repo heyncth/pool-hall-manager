@@ -36,3 +36,4 @@ from .group_birthday import *
 from .beg_ninja import *
 from .open_plate import *
 from .close_insurance import *
+from .filter_corner import *
