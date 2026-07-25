@@ -64,7 +64,7 @@ INIT_FILE = OUT_DIR / "__init__.py"
 # ─── Day Type Configuration ──────────────────────────────────────────────────
 
 DAY_TYPES = [
-    {"name": "bad",     "weight": 60, "min_c": 5,  "max_c": 12},
+    {"name": "bad",     "weight": 60, "min_c": 0,  "max_c": 12},
     {"name": "average", "weight": 30, "min_c": 11, "max_c": 18},
     {"name": "good",    "weight": 10, "min_c": 19, "max_c": 28},
 ]
