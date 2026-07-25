@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Project development utilities."""
 
-import hashlib
 import os
 import random
 import subprocess
