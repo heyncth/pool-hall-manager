@@ -659,10 +659,11 @@ def main() -> int:
     print(f"{'─'*50}\n")
 
     try:
-        subprocess.run(["git", "push"], cwd=REPO_ROOT, capture_output=True, check=True)
-        print("  pushed")
-    except subprocess.CalledProcessError:
-        print("  push skipped (no remote)")
+        result = subprocess.run(["git", "push"], cwd=REPO_ROOT, capture_output=True, text=True, check=True)
+        print(f"  pushed")
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.strip() if e.stderr else str(e)
+        print(f"  push failed: {err[:200]}")
 
     return 0 if successful > 0 else 1
 
