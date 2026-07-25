@@ -23,3 +23,4 @@ from .stats_someplace import *
 from .verbalize_effective import *
 from .verbalize_perennial import *
 from .lick_inquiry import *
+from .filter_timpani import *
