@@ -33,3 +33,4 @@ from .lean_pat import *
 from .let_bladder import *
 from .stats_panty import *
 from .group_birthday import *
+from .beg_ninja import *
