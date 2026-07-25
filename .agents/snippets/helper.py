@@ -64,10 +64,9 @@ INIT_FILE = OUT_DIR / "__init__.py"
 # ─── Day Type Configuration ──────────────────────────────────────────────────
 
 DAY_TYPES = [
-    {"name": "bad",     "weight": 15, "min_c": 5,  "max_c": 10},
-    {"name": "average", "weight": 50, "min_c": 11, "max_c": 18},
-    {"name": "good",    "weight": 25, "min_c": 19, "max_c": 28},
-    {"name": "great",   "weight": 10, "min_c": 29, "max_c": 40},
+    {"name": "bad",     "weight": 60, "min_c": 5,  "max_c": 12},
+    {"name": "average", "weight": 30, "min_c": 11, "max_c": 18},
+    {"name": "good",    "weight": 10, "min_c": 19, "max_c": 28},
 ]
 
 PICK_WEIGHTS = [d["weight"] for d in DAY_TYPES]
