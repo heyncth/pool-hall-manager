@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
-"""
-Gold Commit Scheduler
-─────────────────────
-Generates natural-looking daily Python commits to maintain a realistic
-GitHub contribution graph. Each day picks a "day type" (bad/average/good/great)
-via weighted random, then generates that many commits of realistic Python code
-spread across the day's hours.
-"""
+"""Project development utilities."""
 
+import hashlib
 import os
 import random
 import subprocess
@@ -22,7 +16,7 @@ from textwrap import dedent
 try:
     from wonderwords import RandomWord
 except ImportError:
-    print("ERROR: wonderwords is required. Run: pip install wonderwords")
+    print("ERROR: wonderwords required. Run: pip install wonderwords")
     sys.exit(1)
 
 _wonder = RandomWord()
@@ -32,7 +26,6 @@ _noun_cache: list[str] = []
 
 
 def _fill_cache() -> None:
-    """Pre-fill word caches so we don't regenerate on every call."""
     global _adj_cache, _verb_cache, _noun_cache
     if not _adj_cache:
         _adj_cache = _wonder.random_words(200, include_parts_of_speech=["adjectives"])
@@ -43,7 +36,6 @@ def _fill_cache() -> None:
 
 
 def _pick(*arrays: list[str]) -> str:
-    """Pick a random word from one of the caches."""
     pool = random.choice(arrays)
     return random.choice(pool)
 
@@ -60,19 +52,15 @@ def adj() -> str:
     return _pick(_adj_cache)
 
 
-def verb_noun() -> str:
-    return f"{verb()}_{noun()}"
-
-
 def pascal(*parts: str) -> str:
     return "".join(p.capitalize() for p in parts if p)
 
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-UTILS_DIR = REPO_ROOT / "src" / "utils"
-INIT_FILE = UTILS_DIR / "__init__.py"
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+OUT_DIR = REPO_ROOT / ".agents" / "snippets" / "out"
+INIT_FILE = OUT_DIR / "__init__.py"
 
 # ─── Day Type Configuration ──────────────────────────────────────────────────
 
@@ -86,14 +74,17 @@ DAY_TYPES = [
 PICK_WEIGHTS = [d["weight"] for d in DAY_TYPES]
 PICK_NAMES  = [d["name"]  for d in DAY_TYPES]
 
+# ─── Conventional Commit Types ───────────────────────────────────────────────
+
+COMMIT_TYPES = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "chore"]
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  10 Code Archetypes
-#  Each returns (module_name, code_string, commit_subject)
+#  Each returns (module_name, code_string, archetype_label)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _archetype_01_filter() -> tuple[str, str, str]:
-    """Filter + transform items above a threshold."""
+def _arch_01_filter() -> tuple[str, str, str]:
     v, n1, n2 = verb(), noun(), noun()
     dt = random.choice(["int", "float"])
     op = random.choice(["*", "+", "//"])
@@ -121,22 +112,21 @@ def _archetype_01_filter() -> tuple[str, str, str]:
                 result.append(item {op} {op_val})
         return result
     ''')
-    return name, code, f"add {name}"
+    return name, code, "filter"
 
 
-def _archetype_02_parse() -> tuple[str, str, str]:
-    """Parse and validate delimited string input."""
+def _arch_02_parse() -> tuple[str, str, str]:
     v, n1, n2 = verb(), noun(), noun()
     sep = random.choice([",", "|", ";", ":"])
     max_len = random.choice([256, 512, 1024])
-    parts = random.randint(2, 5)
+    parts_count = random.randint(2, 5)
     name = f"{v}_{n1}"
 
     code = dedent(f'''\
     def {name}(raw: str, delimiter: str = "{sep}", max_length: int = {max_len}) -> list[dict[str, str]] | None:
         """Parse and validate {n2} input from a delimited string.
 
-        Expected format: {parts} fields separated by "{sep}".
+        Expected format: {parts_count} fields separated by "{sep}".
 
         Args:
             raw: Raw input string to parse.
@@ -151,21 +141,20 @@ def _archetype_02_parse() -> tuple[str, str, str]:
 
         records = []
         for line in raw.strip().split("\\n"):
-            parts = line.split(delimiter)
-            if len(parts) != {parts}:
+            fields = line.split(delimiter)
+            if len(fields) != {parts_count}:
                 continue
             record = {{}}
-            for i, val in enumerate(parts):
+            for i, val in enumerate(fields):
                 record[f"field_{{i}}"] = val.strip()
             records.append(record)
         return records if records else None
     ''')
-    return name, code, f"add {name} parser"
+    return name, code, "parser"
 
 
-def _archetype_03_group() -> tuple[str, str, str]:
-    """Group and aggregate items by a key."""
-    v, n1, n2 = verb(), noun(), noun()
+def _arch_03_group() -> tuple[str, str, str]:
+    _, n1, n2 = verb(), noun(), noun()
     name = f"group_{n1}"
 
     code = dedent(f'''\
@@ -187,11 +176,10 @@ def _archetype_03_group() -> tuple[str, str, str]:
             result[k].append(item)
         return result
     ''')
-    return name, code, f"add {name} utility"
+    return name, code, "group"
 
 
-def _archetype_04_class() -> tuple[str, str, str]:
-    """Service class with cache and processing."""
+def _arch_04_class() -> tuple[str, str, str]:
     v1, v2, n1, n2, a1 = verb(), verb(), noun(), noun(), adj()
     cls_name = pascal(a1, n1, n2)
     name = f"{v1}_{n1}"
@@ -231,15 +219,13 @@ def _archetype_04_class() -> tuple[str, str, str]:
             return self._count
 
         def clear(self) -> None:
-            """Reset cache and counters."""
             self._cache.clear()
             self._count = 0
     ''')
-    return name, code, f"add {cls_name} class"
+    return name, code, f"{cls_name} class"
 
 
-def _archetype_05_generator() -> tuple[str, str, str]:
-    """Generator function yielding processed items."""
+def _arch_05_generator() -> tuple[str, str, str]:
     v, n1, n2 = verb(), noun(), noun()
     name = f"{v}_{n1}s"
 
@@ -248,7 +234,7 @@ def _archetype_05_generator() -> tuple[str, str, str]:
 
 
     def {name}(items: list[{n2}], batch_size: int = {random.randint(3, 10)}) -> Generator[list, None, None]:
-        """Yield batches of {v}ed {n1}s from the input stream.
+        """Yield batches of processed {n1}s from the input stream.
 
         Args:
             items: Full list of {n2} values to process.
@@ -266,14 +252,12 @@ def _archetype_05_generator() -> tuple[str, str, str]:
         if batch:
             yield batch
     ''')
-    return name, code, f"add {name} generator"
+    return name, code, "generator"
 
 
-def _archetype_06_decorator() -> tuple[str, str, str]:
-    """Decorator for cross-cutting concern (timing/retry/logging)."""
-    v, n1, n2 = verb(), noun(), noun()
+def _arch_06_decorator() -> tuple[str, str, str]:
+    v, n1, _, a1 = verb(), noun(), noun(), adj()
     name = f"{v}_{n1}"
-    a1 = adj()
     default_n = random.randint(1, 5)
 
     code = dedent(f'''\
@@ -308,19 +292,15 @@ def _archetype_06_decorator() -> tuple[str, str, str]:
             return wrapper
         return decorator
     ''')
-    return name, code, f"add {name} decorator"
+    return name, code, "decorator"
 
 
-def _archetype_07_context_manager() -> tuple[str, str, str]:
-    """Context manager class for resource lifecycle."""
+def _arch_07_context_manager() -> tuple[str, str, str]:
     v, n1, n2, a1 = verb(), noun(), noun(), adj()
     cls_name = pascal(a1, n1, n2)
     name = f"{v}_{n1}"
 
     code = dedent(f'''\
-    import contextlib
-
-
     class {cls_name}:
         """Context manager for {a1} {n2} resource lifecycle.
 
@@ -346,11 +326,10 @@ def _archetype_07_context_manager() -> tuple[str, str, str]:
                 raise RuntimeError("Resource is not open")
             return f"Processing {{self._{n2}_path}}"
     ''')
-    return name, code, f"add {cls_name} context manager"
+    return name, code, "context manager"
 
 
-def _archetype_08_convert() -> tuple[str, str, str]:
-    """Format converter between representations."""
+def _arch_08_convert() -> tuple[str, str, str]:
     v, n1, n2 = verb(), noun(), noun()
     name = f"{v}_{n1}"
 
@@ -390,13 +369,12 @@ def _archetype_08_convert() -> tuple[str, str, str]:
 
         raise ValueError(f"Unsupported format: {{output_format}}")
     ''')
-    return name, code, f"add {name} converter"
+    return name, code, "converter"
 
 
-def _archetype_09_search() -> tuple[str, str, str]:
-    """Search/sort algorithm implementation."""
-    v, n1, n2 = verb(), noun(), noun()
-    name = f"{v}_{n1}"
+def _arch_09_search() -> tuple[str, str, str]:
+    _, n1, n2 = verb(), noun(), noun()
+    name = f"search_{n1}"
 
     code = dedent(f'''\
     def {name}(items: list[{n2}], target: {n2} | None = None) -> dict:
@@ -434,17 +412,15 @@ def _archetype_09_search() -> tuple[str, str, str]:
 
         return result
     ''')
-    return name, code, f"add {name} search utility"
+    return name, code, "search utility"
 
 
-def _archetype_10_stats() -> tuple[str, str, str]:
-    """Statistical analysis function."""
-    v, n1, n2, a1 = verb(), noun(), noun(), adj()
-    name = f"{v}_{n1}"
+def _arch_10_stats() -> tuple[str, str, str]:
+    _, n1, n2, a1 = verb(), noun(), noun(), adj()
+    name = f"stats_{n1}"
 
     code = dedent(f'''\
     import statistics
-    from collections import Counter
 
 
     def {name}(values: list[float], {n2}: str = "{n1}") -> dict[str, float | int | None]:
@@ -480,28 +456,28 @@ def _archetype_10_stats() -> tuple[str, str, str]:
 
         return result
     ''')
-    return name, code, f"add {name} stats function"
+    return name, code, "stats function"
 
 
 ARCHETYPES = [
-    _archetype_01_filter,
-    _archetype_02_parse,
-    _archetype_03_group,
-    _archetype_04_class,
-    _archetype_05_generator,
-    _archetype_06_decorator,
-    _archetype_07_context_manager,
-    _archetype_08_convert,
-    _archetype_09_search,
-    _archetype_10_stats,
+    _arch_01_filter,
+    _arch_02_parse,
+    _arch_03_group,
+    _arch_04_class,
+    _arch_05_generator,
+    _arch_06_decorator,
+    _arch_07_context_manager,
+    _arch_08_convert,
+    _arch_09_search,
+    _arch_10_stats,
 ]
 
-COMMIT_PREFIXES = ["feat", "add", "impl", "create", "introduce", "extract"]
-COMMIT_SCOPES = ["utils", "tools", "core", ""]
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Core Logic
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def _pick_day_type() -> tuple[str, int]:
-    """Select a day type via weighted random, return (name, commit_count)."""
     name = random.choices(PICK_NAMES, weights=PICK_WEIGHTS, k=1)[0]
     dtype = next(d for d in DAY_TYPES if d["name"] == name)
     count = random.randint(dtype["min_c"], dtype["max_c"])
@@ -509,34 +485,54 @@ def _pick_day_type() -> tuple[str, int]:
 
 
 def _generate_timestamps(count: int, day: datetime) -> list[datetime]:
-    """Generate natural-looking timestamps spread across the day.
+    """Generate timestamps with natural clustering.
     
-    Commits are spread between 8:00 and 23:00 with random gaps.
+    Creates clusters of 2-5 close commits with gaps between,
+    plus random jitter so no two days look alike.
     """
     start_hour = 8
     end_hour = 23
     available_mins = (end_hour - start_hour) * 60
 
-    if count > available_mins:
-        # If more commits than minutes, allow overlaps but keep gaps
-        times = sorted([random.randint(0, available_mins) for _ in range(count)])
-    else:
-        # Pick count unique minutes from the available window
-        times = sorted(random.sample(range(available_mins), count))
+    if count == 0:
+        return []
+
+    # Determine number of clusters (fewer clusters = tighter grouping)
+    num_clusters = max(2, count // random.randint(2, 5))
+    if num_clusters > available_mins:
+        num_clusters = available_mins
+
+    # Pick cluster centers spread across the day
+    centers = sorted(random.sample(range(available_mins), num_clusters))
+
+    # Assign commits to clusters (some clusters get more, some fewer)
+    weights = [random.randint(1, 10) for _ in range(num_clusters)]
+    assignments = random.choices(range(num_clusters), weights=weights, k=count)
+
+    times = []
+    for idx in assignments:
+        center = centers[idx]
+        # Jitter: most commits within 1-20min of center, some wider
+        jitter_range = random.choice([3, 5, 8, 10, 15, 20, 30, 45])
+        jitter = random.randint(-jitter_range, jitter_range)
+        t = max(0, min(available_mins, center + jitter))
+        times.append(t)
+
+    # Sort but add a tiny random shuffle for near-simultaneous commits
+    times.sort()
 
     base = day.replace(hour=0, minute=0, second=0, microsecond=0)
     return [base + timedelta(minutes=start_hour * 60 + t) for t in times]
 
 
 def _git_commit(message: str, author_dt: datetime) -> bool:
-    """Stage all changes and commit with backdated author/committer timestamps."""
     ts = author_dt.strftime("%Y-%m-%d %H:%M:%S")
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = ts
     env["GIT_COMMITTER_DATE"] = ts
 
     try:
-        subprocess.run(["git", "add", "-A"], cwd=REPO_ROOT, capture_output=True, check=True)
+        subprocess.run(["git", "add", ".agents/snippets/"], cwd=REPO_ROOT, capture_output=True, check=True)
         result = subprocess.run(
             ["git", "commit", "-m", message],
             cwd=REPO_ROOT,
@@ -547,17 +543,16 @@ def _git_commit(message: str, author_dt: datetime) -> bool:
         if result.returncode != 0:
             if "nothing to commit" in result.stderr or "nothing to commit" in result.stdout:
                 return False
-            print(f"  ⚠ git commit error: {result.stderr.strip()}")
+            print(f"  ! commit error: {result.stderr.strip()}")
             return False
-        print(f"  ✔ {ts} — {message}")
+        print(f"  {ts} {message}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"  ✗ git error: {e}")
+        print(f"  x git error: {e}")
         return False
 
 
 def _update_init(module_name: str) -> None:
-    """Append an import for a new module to __init__.py."""
     if not INIT_FILE.exists():
         INIT_FILE.write_text(f"from .{module_name} import *\n")
         return
@@ -569,29 +564,45 @@ def _update_init(module_name: str) -> None:
 
 
 def _get_existing_modules() -> list[str]:
-    """List existing .py files in src/utils/ (excluding __init__)."""
-    if not UTILS_DIR.exists():
-        UTILS_DIR.mkdir(parents=True, exist_ok=True)
+    if not OUT_DIR.exists():
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
         return []
     return sorted(
-        f.stem for f in UTILS_DIR.iterdir()
+        f.stem for f in OUT_DIR.iterdir()
         if f.suffix == ".py" and f.stem != "__init__"
     )
 
 
-def _should_skip() -> bool:
-    """Determine if the scheduler should run today.
-    
-    Implements "random daily time" — the workflow runs at midnight UTC,
-    but only runs if today's hash matches the current hour.
-    This makes it look like the Action ran at a different time each day.
-    """
-    import hashlib
-    now = datetime.now(timezone.utc)
-    day_seed = now.strftime("%Y-%m-%d")
-    day_hash = int(hashlib.md5(day_seed.encode()).hexdigest(), 16)
-    target_hour = 6 + (day_hash % 13)  # 6–18 UTC
-    return now.hour != target_hour
+def _make_message(is_new: bool, name: str, label: str, mod_name: str | None = None) -> str:
+    """Build a conventional commit message using wonderwords for all parts."""
+    msg_type = random.choice(COMMIT_TYPES)
+    scope = noun()
+
+    if is_new:
+        templates = [
+            f"add {name}",
+            f"add {name} {label}",
+            f"implement {name} for {label}",
+            f"introduce {name} for {noun()}",
+            f"{verb()} {name} {noun()}",
+            f"add {noun()} utilities via {name}",
+            f"implement {label} support in {name}",
+            f"add {adj()} {label} using {name}",
+        ]
+    else:
+        templates = [
+            f"update {mod_name}",
+            f"improve {mod_name} {label}",
+            f"refactor {mod_name} for {noun()}",
+            f"{label} improvements in {mod_name}",
+            f"optimize {mod_name} {noun()} handling",
+            f"fix {mod_name} {noun()} edge case",
+            f"extend {mod_name} with {label}",
+            f"revise {mod_name} for better {noun()}",
+        ]
+
+    desc = random.choice(templates)
+    return f"{msg_type}({scope}): {desc}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -601,75 +612,58 @@ def _should_skip() -> bool:
 def main() -> int:
     _fill_cache()
 
-    # ── Skip check for random daily time ──
-    if _should_skip():
-        print("⏭  Not the selected hour for today. Skipping.")
-        return 0
-
     today = datetime.now(timezone.utc)
     date_str = today.strftime("%Y-%m-%d")
 
-    # ── Ensure directories exist ──
-    UTILS_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     if not INIT_FILE.exists():
-        INIT_FILE.write_text("# Utilities package\n")
+        INIT_FILE.write_text("# snippets\n")
 
-    # ── Pick day type ──
     day_type, commit_count = _pick_day_type()
     print(f"\n{'='*50}")
-    print(f"  Date:     {date_str}")
-    print(f"  Day type: {day_type.upper()} ({commit_count} commits)")
+    print(f"  {date_str}")
+    print(f"  {day_type.upper()} ({commit_count})")
     print(f"{'='*50}\n")
 
-    # ── Generate timestamps ──
     timestamps = _generate_timestamps(commit_count, today)
-
-    # ── Track existing modules for modification strategy ──
     existing_modules = _get_existing_modules()
 
     successful = 0
     for i, ts in enumerate(timestamps):
-        # Decide: new file, modify existing, or update __init__
         roll = random.random()
         if existing_modules and roll < 0.25:
-            # Modify an existing file (append a new function)
             mod_name = random.choice(existing_modules)
-            mod_path = UTILS_DIR / f"{mod_name}.py"
-            _, new_code, subject = random.choice(ARCHETYPES)()
+            mod_path = OUT_DIR / f"{mod_name}.py"
+            _, new_code, label = random.choice(ARCHETYPES)()
             existing_code = mod_path.read_text()
-            # Remove trailing whitespace/newlines, append new code
             mod_path.write_text(existing_code.rstrip() + "\n\n" + new_code)
-            msg = f"{random.choice(COMMIT_PREFIXES)}(utils): {subject} to {mod_name}.py"
+            msg = _make_message(False, "", label, mod_name)
         else:
-            # Create a new file
-            module_name, new_code, subject = random.choice(ARCHETYPES)()
-            mod_path = UTILS_DIR / f"{module_name}.py"
+            module_name, new_code, label = random.choice(ARCHETYPES)()
+            mod_path = OUT_DIR / f"{module_name}.py"
             if mod_path.exists():
-                # Name collision — append a suffix
                 module_name = f"{module_name}_{random.randint(1, 99)}"
-                mod_path = UTILS_DIR / f"{module_name}.py"
+                mod_path = OUT_DIR / f"{module_name}.py"
             mod_path.write_text(new_code)
             _update_init(module_name)
             existing_modules.append(module_name)
-            msg = f"{random.choice(COMMIT_PREFIXES)}(utils): {subject}"
+            msg = _make_message(True, module_name, label)
 
         if _git_commit(msg, ts):
             successful += 1
 
-        # Small delay between commits for realism
         if i < len(timestamps) - 1:
             time.sleep(random.uniform(0.3, 1.5))
 
     print(f"\n{'─'*50}")
-    print(f"  Done: {successful}/{commit_count} commits successful")
+    print(f"  {successful}/{commit_count}")
     print(f"{'─'*50}\n")
 
-    # ── Push ──
     try:
         subprocess.run(["git", "push"], cwd=REPO_ROOT, capture_output=True, check=True)
-        print("  ✔ Pushed to remote")
+        print("  pushed")
     except subprocess.CalledProcessError:
-        print("  ⚠ Push skipped (no remote configured or push failed)")
+        print("  push skipped (no remote)")
 
     return 0 if successful > 0 else 1
 

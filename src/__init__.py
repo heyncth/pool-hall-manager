@@ -1,1 +1,0 @@
-# Gold — personal utility toolkit
