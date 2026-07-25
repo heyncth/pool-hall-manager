@@ -20,3 +20,4 @@ from .forgive_interpreter import *
 from .illustrate_audience import *
 from .branch_economics import *
 from .stats_someplace import *
+from .verbalize_effective import *
