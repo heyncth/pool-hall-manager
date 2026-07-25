@@ -28,3 +28,4 @@ from .filter_assessment import *
 from .watch_deposition import *
 from .filter_ninja import *
 from .filter_lender import *
+from .go_facultys import *
