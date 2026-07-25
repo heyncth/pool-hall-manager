@@ -25,3 +25,4 @@ from .verbalize_perennial import *
 from .lick_inquiry import *
 from .filter_timpani import *
 from .filter_assessment import *
+from .watch_deposition import *
