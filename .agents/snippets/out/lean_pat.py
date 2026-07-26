@@ -24,3 +24,22 @@ def lean_pat(raw: str, delimiter: str = ",", max_length: int = 256) -> list[dict
             record[f"field_{i}"] = val.strip()
         records.append(record)
     return records if records else None
+
+def filter_embryo(items: list[float], threshold: float = 63) -> list[float]:
+    """Filter contagions above a threshold and contract the result.
+
+    Args:
+        items: Collection of contagions to process.
+        threshold: Minimum value to include.
+
+    Returns:
+        Filtered and transformed list of contagions.
+    """
+    if not items:
+        return []
+
+    result = []
+    for item in items:
+        if item >= threshold:
+            result.append(item + 6)
+    return result
