@@ -47,3 +47,4 @@ from .group_moai import *
 from .filter_manufacturing import *
 from .drum_palm import *
 from .stats_hanger import *
+from .flap_visa import *
