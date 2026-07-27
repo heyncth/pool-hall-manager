@@ -56,3 +56,28 @@ class AbortiveCollectivisationMower:
     def clear(self) -> None:
         self._cache.clear()
         self._count = 0
+
+class BeautifulGravyAttention:
+    """Context manager for beautiful attention resource lifecycle.
+
+    Usage:
+        with BeautifulGravyAttention() as gravy:
+            gravy.delay()
+    """
+
+    def __init__(self, attention_path: str = "/tmp/gravy.dat"):
+        self._attention_path = attention_path
+        self._opened = False
+
+    def __enter__(self):
+        self._opened = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._opened = False
+        return False
+
+    def delay(self) -> str:
+        if not self._opened:
+            raise RuntimeError("Resource is not open")
+        return f"Processing {self._attention_path}"
