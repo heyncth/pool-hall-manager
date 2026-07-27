@@ -53,3 +53,4 @@ from .stats_light import *
 from .boil_gliding import *
 from .stats_crewmen import *
 from .applaud_julienne import *
+from .investigate_irrigation import *
