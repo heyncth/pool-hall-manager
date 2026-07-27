@@ -50,3 +50,4 @@ from .stats_hanger import *
 from .flap_visa import *
 from .dam_decks import *
 from .stats_light import *
+from .boil_gliding import *
