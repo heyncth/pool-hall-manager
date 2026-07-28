@@ -70,3 +70,4 @@ from .filter_lifestyle import *
 from .group_login import *
 from .tame_bottom import *
 from .filter_schema import *
+from .rid_strobe import *
