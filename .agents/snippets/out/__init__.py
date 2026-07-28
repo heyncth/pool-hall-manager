@@ -74,3 +74,4 @@ from .rid_strobe import *
 from .influence_premium import *
 from .sublet_dancing import *
 from .supervise_custards import *
+from .search_violet import *
