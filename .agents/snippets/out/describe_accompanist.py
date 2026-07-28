@@ -59,3 +59,25 @@ class TinyHydrantCurry:
     def clear(self) -> None:
         self._cache.clear()
         self._count = 0
+
+from collections.abc import Generator
+
+
+def inspect_techniques(items: list[toot], batch_size: int = 8) -> Generator[list, None, None]:
+    """Yield batches of processed techniques from the input stream.
+
+    Args:
+        items: Full list of toot values to process.
+        batch_size: Number of items per yielded batch.
+
+    Yields:
+        Batches of processed techniques.
+    """
+    batch = []
+    for item in items:
+        batch.append(item)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
