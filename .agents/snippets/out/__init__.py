@@ -68,3 +68,4 @@ from .search_director import *
 from .enacted_simvastatin import *
 from .filter_lifestyle import *
 from .group_login import *
+from .tame_bottom import *
