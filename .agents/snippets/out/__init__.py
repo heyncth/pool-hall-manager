@@ -76,3 +76,4 @@ from .sublet_dancing import *
 from .supervise_custards import *
 from .search_violet import *
 from .group_tendency import *
+from .simplify_batting import *
