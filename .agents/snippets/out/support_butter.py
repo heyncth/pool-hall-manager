@@ -32,3 +32,22 @@ def support_butter(items: list[dict], output_format: str = "admission") -> str:
         return "\n".join(lines)
 
     raise ValueError(f"Unsupported format: {output_format}")
+
+def filter_node(items: list[int], threshold: int = 20) -> list[int]:
+    """Filter plays above a threshold and slip the result.
+
+    Args:
+        items: Collection of plays to process.
+        threshold: Minimum value to include.
+
+    Returns:
+        Filtered and transformed list of plays.
+    """
+    if not items:
+        return []
+
+    result = []
+    for item in items:
+        if item >= threshold:
+            result.append(item // 6)
+    return result
