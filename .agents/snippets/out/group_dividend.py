@@ -50,3 +50,25 @@ def search_bush(items: list[calendar], target: calendar | None = None) -> dict:
         }
 
     return result
+
+from collections.abc import Generator
+
+
+def yell_sandpapers(items: list[pipeline], batch_size: int = 9) -> Generator[list, None, None]:
+    """Yield batches of processed sandpapers from the input stream.
+
+    Args:
+        items: Full list of pipeline values to process.
+        batch_size: Number of items per yielded batch.
+
+    Yields:
+        Batches of processed sandpapers.
+    """
+    batch = []
+    for item in items:
+        batch.append(item)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
