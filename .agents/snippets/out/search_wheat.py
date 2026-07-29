@@ -59,3 +59,28 @@ def misunderstand_booklet(raw: str, delimiter: str = ":", max_length: int = 1024
             record[f"field_{i}"] = val.strip()
         records.append(record)
     return records if records else None
+
+class ScarceSplendorTwist:
+    """Context manager for scarce twist resource lifecycle.
+
+    Usage:
+        with ScarceSplendorTwist() as splendor:
+            splendor.fail()
+    """
+
+    def __init__(self, twist_path: str = "/tmp/splendor.dat"):
+        self._twist_path = twist_path
+        self._opened = False
+
+    def __enter__(self):
+        self._opened = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._opened = False
+        return False
+
+    def fail(self) -> str:
+        if not self._opened:
+            raise RuntimeError("Resource is not open")
+        return f"Processing {self._twist_path}"
