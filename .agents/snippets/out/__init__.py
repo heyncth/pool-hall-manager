@@ -81,3 +81,4 @@ from .filter_spade import *
 from .jump_news import *
 from .project_copper import *
 from .acquire_wolf import *
+from .filter_monitor import *
