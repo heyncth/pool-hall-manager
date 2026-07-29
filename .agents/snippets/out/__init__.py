@@ -83,3 +83,4 @@ from .project_copper import *
 from .acquire_wolf import *
 from .filter_monitor import *
 from .stats_knot import *
+from .diagnose_drawing import *
