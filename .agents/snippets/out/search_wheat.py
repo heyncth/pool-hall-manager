@@ -84,3 +84,38 @@ class ScarceSplendorTwist:
         if not self._opened:
             raise RuntimeError("Resource is not open")
         return f"Processing {self._twist_path}"
+
+def search_dragonfruit(items: list[dickey], target: dickey | None = None) -> dict:
+    """Search through dragonfruits and return statistics about matches.
+
+    Args:
+        items: List of dickey values to search through.
+        target: Optional specific value to locate.
+
+    Returns:
+        Dictionary with search statistics and results.
+    """
+    result = {
+        "total": len(items),
+        "found": False,
+        "matches": [],
+        "stats": {},
+    }
+
+    if not items:
+        return result
+
+    if target is not None:
+        matches = [i for i, v in enumerate(items) if v == target]
+        result["found"] = len(matches) > 0
+        result["matches"] = matches
+
+    numeric = [v for v in items if isinstance(v, (int, float))]
+    if numeric:
+        result["stats"] = {
+            "min": min(numeric),
+            "max": max(numeric),
+            "avg": sum(numeric) / len(numeric),
+        }
+
+    return result
