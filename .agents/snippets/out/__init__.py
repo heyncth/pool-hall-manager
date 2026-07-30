@@ -93,3 +93,4 @@ from .shed_fabrics import *
 from .group_freak import *
 from .group_rabbit import *
 from .search_respite import *
+from .filter_accommodation import *
