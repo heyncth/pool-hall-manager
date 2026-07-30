@@ -89,3 +89,4 @@ from .misunderstand_graph import *
 from .film_zoot-suit import *
 from .split_molar import *
 from .stats_creation import *
+from .shed_fabrics import *
