@@ -96,3 +96,4 @@ from .search_respite import *
 from .filter_accommodation import *
 from .choke_burden import *
 from .distribute_outriggers import *
+from .lose_wind import *
