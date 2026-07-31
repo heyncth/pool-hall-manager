@@ -11,7 +11,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -21,18 +21,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
-
-      - name: Install deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r .agents/snippets/requirements.txt
 
       - name: Configure git
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name "Nguyễn Công Thuận Huy"
           git config user.email "nguyencongthuanhuy@gmail.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
 
-      - name: Run helper
-        run: python .agents/snippets/helper.py
+      - name: Run evolution engine
+        run: python .agents/evolution/main.py
