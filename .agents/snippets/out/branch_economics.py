@@ -28,3 +28,25 @@ def branch_economics(max_attempts: int = 2, delay: float = 0.6):
             raise RuntimeError(f"{func.__name__} failed after {max_attempts} attempts") from last_error
         return wrapper
     return decorator
+
+from collections.abc import Generator
+
+
+def stink_farms(items: list[smuggling], batch_size: int = 6) -> Generator[list, None, None]:
+    """Yield batches of processed farms from the input stream.
+
+    Args:
+        items: Full list of smuggling values to process.
+        batch_size: Number of items per yielded batch.
+
+    Yields:
+        Batches of processed farms.
+    """
+    batch = []
+    for item in items:
+        batch.append(item)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
