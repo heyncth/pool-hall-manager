@@ -84,7 +84,8 @@ def main(argv: list[str] | None = None) -> int:
             continue
         subject = message.make(rng, change.op, change.module, change.name, change.detail, change.version, recent_messages)
         if args.dry_run:
-            print(f"  [dry-run] {when:%H:%M} {subject}  ({', '.join(str(f) for f in change.files)})")
+            print(f"  [dry-run] {when:%H:%M} {change.op:<18} {subject}  ({', '.join(str(f) for f in change.files)})")
+            _rollback(repo, snapshot, change)  # dry-run must not touch the tree
             made += 1
             continue
         result = git.commit(repo, change.files, subject, when)
