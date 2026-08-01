@@ -109,3 +109,4 @@ from .stats_flatboat import *
 from .group_ingrate import *
 from .suffer_host import *
 from .search_vet import *
+from .render_handrail import *
