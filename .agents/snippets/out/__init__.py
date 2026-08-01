@@ -126,3 +126,4 @@ from .waste_inventory import *
 from .interrupt_burst import *
 from .guess_empires import *
 from .group_roof import *
+from .compete_robotics import *
