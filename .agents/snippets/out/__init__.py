@@ -122,3 +122,4 @@ from .compute_lag import *
 from .search_crotch import *
 from .group_commercial import *
 from .search_footnote import *
+from .waste_inventory import *
