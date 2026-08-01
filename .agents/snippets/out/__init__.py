@@ -119,3 +119,4 @@ from .filter_cloud import *
 from .amuse_ukulele import *
 from .upgrade_facility import *
 from .compute_lag import *
+from .search_crotch import *
