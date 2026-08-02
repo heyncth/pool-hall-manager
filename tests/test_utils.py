@@ -25,3 +25,6 @@ def test_parse_time():
 def test_is_within_hours():
     assert is_within_hours(datetime(2026, 8, 1, 12), 9, 23)
     assert not is_within_hours(datetime(2026, 8, 1, 23, 30), 9, 23)
+
+def test_clamp_identity():
+    assert clamp(7, 0, 10) == 7
