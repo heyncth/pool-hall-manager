@@ -22,3 +22,9 @@ def test_write_read_text(tmp_path):
     write_text(path, "hello")
     assert read_text(path) == "hello"
     assert read_text(tmp_path / "missing.txt") is None
+
+def test_save_overwrites(tmp_path):
+    path = tmp_path / "data.json"
+    save_json(path, {"v": 1})
+    save_json(path, {"v": 2})
+    assert load_json(path) == {"v": 2}
