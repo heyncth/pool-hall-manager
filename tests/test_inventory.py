@@ -29,3 +29,7 @@ def test_low_stock():
     items = create_items()
     items[0].quantity = 1
     assert items[0] in low_stock(items)
+
+def test_restock_negative_rejected():
+    with pytest.raises(ValueError):
+        restock(create_items(), "Chalk", -1)
