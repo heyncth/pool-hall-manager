@@ -163,7 +163,15 @@ _HANDLERS = {
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point for the ``poolhall`` console script."""
+    """
+    Entry point for the ``poolhall`` console script.
+    
+    Args:
+        argv: Description.
+    
+    Returns:
+        Description.
+    """
     args = build_parser().parse_args(argv)
     if not args.command:
         build_parser().print_help()
