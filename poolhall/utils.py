@@ -37,3 +37,9 @@ def slugify(value: str) -> str:
 def is_within_hours(when: datetime, opening: int, closing: int) -> bool:
     """Return True when ``when`` falls inside opening hours."""
     return opening <= when.hour < closing
+
+def _coerce_int(value) -> int:
+    """Coerce a value to int, raising ValueError for bad input."""
+    if isinstance(value, bool):
+        raise ValueError("bool is not an int")
+    return int(value)
