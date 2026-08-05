@@ -78,3 +78,7 @@ def format_bill(bill: Bill) -> str:
         f"TOTAL      : {bill.total}",
     ]
     return "\n".join(lines)
+
+def _percent_of(amount: int, percent: float) -> int:
+    """Return ``percent`` percent of ``amount``, rounded to the nearest int."""
+    return round_half_up(amount * percent / 100)
