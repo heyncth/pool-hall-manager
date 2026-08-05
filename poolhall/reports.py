@@ -19,7 +19,15 @@ def daily_summary(tables: list[PoolTable], date_iso: str) -> dict:
 
 
 def revenue_summary(bills: list[dict]) -> dict:
-    """Aggregate revenue from a list of bill dicts."""
+    """
+    Aggregate revenue from a list of bill dicts.
+    
+    Args:
+        bills: Description.
+    
+    Returns:
+        Description.
+    """
     total = sum(b.get("total", 0) for b in bills)
     count = len(bills)
     average = round(total / count) if count else 0
