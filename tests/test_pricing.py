@@ -27,3 +27,6 @@ def test_base_cost():
 
 def test_overtime_cost_free_for_early_close():
     assert overtime_cost(0, 60_000) == 0
+
+def test_overtime_cost_charges():
+    assert overtime_cost(30, 60_000) == 30_000
