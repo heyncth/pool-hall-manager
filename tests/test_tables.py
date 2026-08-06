@@ -47,3 +47,8 @@ def test_add_reservation_rejects_conflict():
     r2 = Reservation(table_number=1, customer="B", start_time=datetime(2026, 8, 1, 12, 30), duration_minutes=60)
     with pytest.raises(ValueError):
         add_reservation([r1], r2)
+
+def test_occupied_tables_after_open():
+    tables = build_tables(2)
+    open_table(tables, 1)
+    assert len(occupied_tables(tables)) == 1
