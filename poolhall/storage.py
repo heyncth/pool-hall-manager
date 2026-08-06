@@ -39,7 +39,15 @@ def load_json(path: Path, default: Any = None) -> Any:
 
 
 def read_text(path: Path) -> str | None:
-    """Return file text, or None when the file is missing."""
+    """
+    Return file text, or None when the file is missing.
+    
+    Args:
+        path: Description.
+    
+    Returns:
+        Description.
+    """
     if not path.exists():
         return None
     return path.read_text(encoding="utf-8")
