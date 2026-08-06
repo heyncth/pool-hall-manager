@@ -18,3 +18,15 @@ POOL_TABLE_TYPES = ("pool", "snooker", "carom")
 
 MAX_RESERVATIONS_PER_TABLE = 4
 LOW_STOCK_THRESHOLD = 5
+
+def _env_int(name: str, default: int) -> int:
+    """Read an integer from the environment, falling back to ``default``."""
+    import os
+
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
