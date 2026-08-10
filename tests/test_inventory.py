@@ -1,6 +1,5 @@
-import pytest
-
 from poolhall.inventory import consume, create_items, low_stock, restock
+import pytest
 
 
 def test_create_items_defaults():
