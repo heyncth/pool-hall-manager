@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 
+import logging
+
 
 class TableStatus(Enum):
     """Lifecycle state of a table."""
@@ -159,3 +161,5 @@ class StockItem:
             unit_price=data.get("unit_price", 0),
             min_stock=data.get("min_stock", 5),
         )
+
+logger = logging.getLogger(__name__)
