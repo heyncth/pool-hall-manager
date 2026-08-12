@@ -40,7 +40,15 @@ def overtime_cost(extra_minutes: int, rate_per_hour: int) -> int:
 
 
 def hourly_tiers() -> list[dict]:
-    """Return the pricing tiers applied across the day."""
+    """
+    Return the pricing tiers applied across the day.
+    
+    Args:
+        (none)
+    
+    Returns:
+        Description.
+    """
     return [
         {"start": 9, "end": 18, "factor": 1.0},
         {"start": 18, "end": 23, "factor": 1.2},
