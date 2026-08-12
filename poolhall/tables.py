@@ -43,7 +43,16 @@ def open_table(tables: list[PoolTable], number: int, when: datetime | None = Non
 
 
 def close_table(tables: list[PoolTable], number: int) -> PoolTable:
-    """Close an occupied table."""
+    """
+    Close an occupied table.
+    
+    Args:
+        tables: Description.
+        number: Description.
+    
+    Returns:
+        Description.
+    """
     table = find_table(tables, number)
     table.close()
     return table
