@@ -28,3 +28,6 @@ def test_is_within_hours():
 
 def test_clamp_identity():
     assert clamp(7, 0, 10) == 7
+
+def test_slugify_multiple_spaces():
+    assert slugify("  Hello   World  ") == "hello-world"
