@@ -41,3 +41,9 @@ def consume(items: list[StockItem], name: str, amount: int) -> StockItem:
 def low_stock(items: list[StockItem], threshold: int = LOW_STOCK_THRESHOLD) -> list[StockItem]:
     """Return items at or below the low-stock threshold."""
     return [item for item in items if item.quantity <= threshold]
+
+def validate_quantity(value: int) -> int:
+    """Return ``value`` when non-negative, otherwise raise ValueError."""
+    if value < 0:
+        raise ValueError("quantity cannot be negative")
+    return value
