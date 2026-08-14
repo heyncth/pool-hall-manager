@@ -21,3 +21,8 @@ def test_inventory_report_flags_low():
     items = [StockItem(name="Chalk", quantity=1, unit_price=5_000, min_stock=5)]
     rows = inventory_report(items)
     assert rows[0]["low"] is True
+
+def test_revenue_summary_empty():
+    summary = revenue_summary([])
+    assert summary["bills"] == 0
+    assert summary["average"] == 0
