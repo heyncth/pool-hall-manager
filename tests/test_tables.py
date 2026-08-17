@@ -52,3 +52,8 @@ def test_occupied_tables_after_open():
     tables = build_tables(2)
     open_table(tables, 1)
     assert len(occupied_tables(tables)) == 1
+
+def test_available_tables_empty():
+    tables = build_tables(1)
+    open_table(tables, 1)
+    assert available_tables(tables) == []
