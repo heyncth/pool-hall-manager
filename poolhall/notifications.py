@@ -20,7 +20,15 @@ class Notification:
 
 
 def low_stock_notices(items) -> list[str]:
-    """Build a notice for every item below its minimum stock."""
+    """
+    Build a notice for every item below its minimum stock.
+    
+    Args:
+        items: Description.
+    
+    Returns:
+        Description.
+    """
     return [f"{item.name} is low ({item.quantity} left)" for item in items if item.is_low()]
 
 
