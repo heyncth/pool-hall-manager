@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from poolhall.utils import clamp, format_currency, is_within_hours, parse_time, slugify
 
 
