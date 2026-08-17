@@ -30,3 +30,5 @@ def _env_int(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return default
+
+DEPOSIT_AMOUNT = 100_000
