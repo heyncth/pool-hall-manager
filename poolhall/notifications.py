@@ -25,7 +25,15 @@ def low_stock_notices(items) -> list[str]:
 
 
 def reservation_notice(reservation) -> str:
-    """Build a notice for an upcoming reservation."""
+    """
+    Build a notice for an upcoming reservation.
+    
+    Args:
+        reservation: Description.
+    
+    Returns:
+        Description.
+    """
     return (
         f"table #{reservation.table_number} reserved for {reservation.customer} "
         f"at {reservation.start_time:%H:%M}"
