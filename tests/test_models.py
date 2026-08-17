@@ -41,3 +41,8 @@ def test_reservation_ends_at():
 def test_table_roundtrip():
     table = PoolTable(number=4, kind="snooker", rate_per_hour=80_000)
     assert PoolTable.from_dict(table.to_dict()) == table
+
+def test_table_open_with_time():
+    table = PoolTable(number=1)
+    table.open(datetime(2026, 8, 1, 9, 0))
+    assert table.opened_at is not None
