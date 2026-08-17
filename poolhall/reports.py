@@ -50,3 +50,9 @@ def inventory_report(items: list[StockItem]) -> list[dict]:
 def today_iso() -> str:
     """Return today's date as an ISO string."""
     return date.today().isoformat()
+
+def _percent(part: int, whole: int) -> float:
+    """Percentage of ``part`` over ``whole``, or 0.0 when whole is zero."""
+    if whole <= 0:
+        return 0.0
+    return round(part * 100 / whole, 1)
