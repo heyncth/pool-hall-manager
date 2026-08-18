@@ -35,7 +35,16 @@ class Bill:
 
 
 def apply_discount(subtotal: int, discount_percent: float) -> int:
-    """Return the amount to deduct for a percentage discount."""
+    """
+    Return the amount to deduct for a percentage discount.
+    
+    Args:
+        subtotal: Description.
+        discount_percent: Description.
+    
+    Returns:
+        Description.
+    """
     if discount_percent < 0 or discount_percent > 100:
         raise ValueError("discount_percent must be between 0 and 100")
     return round_half_up(subtotal * discount_percent / 100)
