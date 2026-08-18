@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import logging
+
 DATA_DIR = Path.home() / ".poolhall"
 DATA_FILE = DATA_DIR / "poolhall.json"
 
@@ -32,3 +34,5 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 DEPOSIT_AMOUNT = 100_000
+
+logger = logging.getLogger(__name__)
