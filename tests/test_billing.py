@@ -29,3 +29,9 @@ def test_calculate_bill_with_discount():
     end = datetime(2026, 8, 1, 11, 0)
     bill = calculate_bill(3, start, end, 60_000, discount_percent=10.0)
     assert bill.discount == 6_000
+
+def test_bill_to_dict_roundtrip():
+    start = datetime(2026, 8, 1, 10, 0)
+    end = datetime(2026, 8, 1, 11, 0)
+    bill = calculate_bill(2, start, end, 60_000)
+    assert bill.to_dict()["table_number"] == 2
