@@ -1,7 +1,6 @@
-import pytest
 from datetime import datetime
-
 from poolhall.models import PoolTable, Reservation, StockItem, TableStatus
+import pytest
 
 
 def test_table_open_and_close():
