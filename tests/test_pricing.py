@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from poolhall.pricing import base_cost, minutes_between, overtime_cost, round_half_up, round_to_minutes
 
 
