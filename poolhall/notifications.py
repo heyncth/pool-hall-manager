@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
+import logging
+
 
 @dataclass
 class Notification:
@@ -46,3 +48,5 @@ def reservation_notice(reservation) -> str:
         f"table #{reservation.table_number} reserved for {reservation.customer} "
         f"at {reservation.start_time:%H:%M}"
     )
+
+logger = logging.getLogger(__name__)
