@@ -74,3 +74,10 @@ def add_reservation(reservations: list[Reservation], candidate: Reservation) -> 
         raise ValueError("reservation conflicts with an existing booking")
     reservations.append(candidate)
     return candidate
+
+def _next_free_number(tables: list) -> int:
+    """Return the smallest table number that is currently free."""
+    for table in sorted(tables, key=lambda t: t.number):
+        if table.is_available():
+            return table.number
+    raise ValueError("no free tables")
