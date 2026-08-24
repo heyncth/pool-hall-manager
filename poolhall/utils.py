@@ -45,3 +45,9 @@ def slugify(value: str) -> str:
 def is_within_hours(when: datetime, opening: int, closing: int) -> bool:
     """Return True when ``when`` falls inside opening hours."""
     return opening <= when.hour < closing
+
+def _ensure_list(value) -> list:
+    """Return ``value`` wrapped in a list when it is not already one."""
+    if isinstance(value, list):
+        return value
+    return [value]
