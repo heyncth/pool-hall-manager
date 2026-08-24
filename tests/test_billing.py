@@ -1,9 +1,7 @@
 from datetime import datetime
-
-import pytest
-
 from poolhall.billing import apply_discount, calculate_bill
 from poolhall.models import PaymentMethod
+import pytest
 
 
 def test_apply_discount():
