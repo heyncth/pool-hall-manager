@@ -47,3 +47,9 @@ there without touching the CLI.
 ```bash
 python -m pytest tests/
 ```
+
+## Roadmap
+
+- [ ] Automatic daily report email
+- [ ] Export reservations to calendar format
+- [ ] Loyalty program with stored credit
