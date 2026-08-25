@@ -81,3 +81,7 @@ def _next_free_number(tables: list) -> int:
         if table.is_available():
             return table.number
     raise ValueError("no free tables")
+
+def _count_by_status(tables: list, status: TableStatus) -> int:
+    """Count tables currently in the given status."""
+    return sum(1 for table in tables if table.status is status)
