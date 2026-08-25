@@ -3,6 +3,8 @@
 from __future__ import annotations
 import math
 
+import logging
+
 MINUTES_PER_HOUR = 60
 ROUNDING_GRANULARITY = 15
 
@@ -54,3 +56,5 @@ def hourly_tiers() -> list[dict]:
     ]
 
 MIN_CHARGE_MINUTES = 30
+
+logger = logging.getLogger(__name__)
