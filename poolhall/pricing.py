@@ -52,3 +52,5 @@ def hourly_tiers() -> list[dict]:
         {"start": 9, "end": 18, "factor": 1.0},
         {"start": 18, "end": 23, "factor": 1.2},
     ]
+
+MIN_CHARGE_MINUTES = 30
