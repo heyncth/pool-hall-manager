@@ -53,3 +53,9 @@ python -m pytest tests/
 - [ ] Automatic daily report email
 - [ ] Export reservations to calendar format
 - [ ] Loyalty program with stored credit
+
+## Development
+
+Clone the repository, install in editable mode (`pip install -e .`) and run
+the test suite with `python -m pytest`. The CLI is a thin layer over the
+`poolhall` package, so most logic is unit-testable without a terminal.
