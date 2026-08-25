@@ -37,11 +37,11 @@ class Bill:
 def apply_discount(subtotal: int, discount_percent: float) -> int:
     """
     Return the amount to deduct for a percentage discount.
-    
+
     Args:
         subtotal: Description.
         discount_percent: Description.
-    
+
     Returns:
         Description.
     """
