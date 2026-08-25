@@ -1,9 +1,7 @@
 """Application settings and shared constants."""
 
 from __future__ import annotations
-
 from pathlib import Path
-
 import logging
 
 DATA_DIR = Path.home() / ".poolhall"
