@@ -1628,23 +1628,62 @@ const betafishEngine = function() {
    ============================              
   \****************************/
 
+  // Counterpuncher 3.0 constants
+  // Preserve: self-discipline (asymmetric: own weakness penalty)
+  var CP_PRESERVE_ISOLATED = 5;
+  var CP_PRESERVE_DOUBLED  = 6;
+  var CP_PRESERVE_BACKWARD = 3;
+
+  // Opponent weakness exploitation
   var CP_ISOLATED   = 10;
   var CP_DOUBLED    = 12;
   var CP_BACKWARD   = 6;
 
+  // Passed pawns
   var CP_PASSED_5   = 10;
   var CP_PASSED_6   = 18;
   var CP_PASSED_7   = 28;
 
-  var CP_ACTIVITY   = 6;
+  // Pressure concentration: [0, 1piece, 2pieces, 3pieces, 4+pieces]
+  var CP_PRESSURE   = [0, 1, 3, 6, 8];
+  var CP_TARGET_RANGE = 3;
+  var CP_COUNTER_MAX  = 30;
 
+  // King exposure
   var CP_SHIELD_R2  = 6;
   var CP_SHIELD_R3  = 3;
-
   var CP_OPEN_FILE  = 8;
-
   var KING_EXPOSURE_EG = 0.30;
   var COUNTERATTACK_EG = 0.40;
+
+  // v3.0: Position Flexibility (0-10 cp tie-breaker)
+  var CP_FLEX_PAWN_BREAK  = 2;   // bonus per available pawn break
+  var CP_FLEX_LOCKED      = -3;  // penalty per locked pawn file
+  var CP_FLEX_MAX         = 10;
+  var FLEXIBILITY_EG      = 0.6;
+
+  // v3.0: Commitment Pressure (0-15 cp)
+  var CP_COMMIT_BLOCKED   = 2;   // per opponent blocked pawn file
+  var CP_COMMIT_TENSION   = 3;   // per unresolved structural tension
+  var CP_COMMIT_MAX       = 15;
+  var COMMITMENT_EG       = 0.5;
+
+  // v3.0: Latent Threats (0-15 cp)
+  var CP_LATENT_ROOK_FILE = 4;   // rook on semi-open file with target ahead
+  var CP_LATENT_KNIGHT    = 3;   // knight near weak square
+  var CP_LATENT_MAX       = 15;
+  var LATENT_EG           = 0.3;
+
+  // v4.0: Trap Quality — opponent error sensitivity (0-15 cp)
+  // Counts opponent pawns that, if advanced, create exploitable weaknesses
+  var CP_TRAP_PAWN        = 4;   // per dangerous opponent pawn push
+  var CP_TRAP_MAX         = 15;
+  var TRAP_EG             = 0.5;
+
+  // v4.0: Activation Thresholds — smooth multiplier 0.2→1.0
+  var CP_ACTIVATE_BASE    = 0.2; // quiet state multiplier
+  var CP_ACTIVATE_SCALE   = 30;  // activation units for full multiplier
+  var CP_ACTIVATE_MAX     = 1.0;
 
 
 
@@ -1733,7 +1772,12 @@ const betafishEngine = function() {
     var blackBackward = 0;
     var blackPassed = 0;
 
-    var i, f, hasSupport, enemyAhead, blocked;
+    // Track weakness squares for target accessibility
+    var whiteWeakSquares = [];
+    var blackWeakSquares = [];
+
+    var i, f, r, hasSupport, enemyAhead, blocked;
+    var r;
 
     // Analyze White pawns
     for (i = 0; i < whitePawns.length; i++) {
@@ -1745,17 +1789,14 @@ const betafishEngine = function() {
       var rightOK = (f === 7) || (whiteFileCount[f + 1] === 0);
       if (leftOK && rightOK) {
         whiteIsolated++;
+        whiteWeakSquares.push({ sq: whitePawns[i].sq, type: 'isolated', file: f, rank: r });
       }
 
-      // Doubled: multiple pawns on same file
-      if (whiteFileCount[f] > 1) {
-        whiteDoubled = whiteFileCount[f] - 1;
-      }
+      // Doubled: computed after loop to avoid overwrite bug
 
       // Backward: no support from adjacent files AND forward square enemy-controlled
       hasSupport = false;
       if (f > 0 && whiteFileCount[f - 1] > 0) {
-        // Check if any friendly pawn on file-1 is at or above this rank
         for (var j = 0; j < whitePawns.length; j++) {
           if (whitePawns[j].file === f - 1 && whitePawns[j].rank >= r) {
             hasSupport = true;
@@ -1773,7 +1814,6 @@ const betafishEngine = function() {
       }
 
       if (!hasSupport && r < 6) {
-        // Check if an enemy pawn controls the forward square (file-1 or file+1, rank+1)
         blocked = false;
         for (var j = 0; j < blackPawns.length; j++) {
           if (blackPawns[j].file === f - 1 && blackPawns[j].rank === r + 1) {
@@ -1787,6 +1827,7 @@ const betafishEngine = function() {
         }
         if (blocked) {
           whiteBackward++;
+          whiteWeakSquares.push({ sq: whitePawns[i].sq, type: 'backward', file: f, rank: r });
         }
       }
 
@@ -1803,6 +1844,20 @@ const betafishEngine = function() {
       }
     }
 
+    // Compute White doubled pawns (per-file, not per-pawn)
+    for (file = 0; file < 8; file++) {
+      if (whiteFileCount[file] > 1) {
+        whiteDoubled += whiteFileCount[file] - 1;
+        // Find the extra pawns on this file as weaknesses
+        for (i = 0; i < whitePawns.length; i++) {
+          if (whitePawns[i].file === file) {
+            whiteWeakSquares.push({ sq: whitePawns[i].sq, type: 'doubled', file: file, rank: whitePawns[i].rank });
+            if (whiteWeakSquares[whiteWeakSquares.length - 1] !== whiteWeakSquares[whiteWeakSquares.length - 2]) break;
+          }
+        }
+      }
+    }
+
     // Analyze Black pawns
     for (i = 0; i < blackPawns.length; i++) {
       f = blackPawns[i].file;
@@ -1813,11 +1868,7 @@ const betafishEngine = function() {
       rightOK = (f === 7) || (blackFileCount[f + 1] === 0);
       if (leftOK && rightOK) {
         blackIsolated++;
-      }
-
-      // Doubled
-      if (blackFileCount[f] > 1) {
-        blackDoubled = blackFileCount[f] - 1;
+        blackWeakSquares.push({ sq: blackPawns[i].sq, type: 'isolated', file: f, rank: r });
       }
 
       // Backward: no support from adjacent files AND forward square enemy-controlled
@@ -1853,6 +1904,7 @@ const betafishEngine = function() {
         }
         if (blocked) {
           blackBackward++;
+          blackWeakSquares.push({ sq: blackPawns[i].sq, type: 'backward', file: f, rank: r });
         }
       }
 
@@ -1869,16 +1921,58 @@ const betafishEngine = function() {
       }
     }
 
-    // Weakness scores: higher = worse for that side
-    var whiteWeakness =
+    // Compute Black doubled pawns (per-file, not per-pawn)
+    for (file = 0; file < 8; file++) {
+      if (blackFileCount[file] > 1) {
+        blackDoubled += blackFileCount[file] - 1;
+        for (i = 0; i < blackPawns.length; i++) {
+          if (blackPawns[i].file === file) {
+            blackWeakSquares.push({ sq: blackPawns[i].sq, type: 'doubled', file: file, rank: blackPawns[i].rank });
+            if (blackWeakSquares[blackWeakSquares.length - 1] !== blackWeakSquares[blackWeakSquares.length - 2]) break;
+          }
+        }
+      }
+    }
+
+    // Exploitation: opponent's weaknesses (what you GAIN from them)
+    var whiteExploitation =
       whiteIsolated * CP_ISOLATED +
       whiteDoubled * CP_DOUBLED +
       whiteBackward * CP_BACKWARD;
 
-    var blackWeakness =
+    var blackExploitation =
       blackIsolated * CP_ISOLATED +
       blackDoubled * CP_DOUBLED +
       blackBackward * CP_BACKWARD;
+
+    // Preserve: own weaknesses (what you LOSE extra)
+    // Uses DIFFERENT weights — self-penalty is smaller than exploitation bonus
+    var whiteSelfPenalty =
+      whiteIsolated * CP_PRESERVE_ISOLATED +
+      whiteDoubled * CP_PRESERVE_DOUBLED +
+      whiteBackward * CP_PRESERVE_BACKWARD;
+
+    var blackSelfPenalty =
+      blackIsolated * CP_PRESERVE_ISOLATED +
+      blackDoubled * CP_PRESERVE_DOUBLED +
+      blackBackward * CP_PRESERVE_BACKWARD;
+
+    // Asymmetric formula (per user spec):
+    // - Opponent weakness exploitation: CP_ISOLATED (10) per weakness
+    // - Own weakness self-penalty: CP_PRESERVE_ISOLATED (5) per weakness
+    // Net White advantage = Black exploitation - White self-penalty
+    //                       -(White exploitation - Black self-penalty)
+    //                     = (blackExploitation + blackSelfPenalty) - (whiteExploitation + whiteSelfPenalty)
+    // But to get the asymmetric result (own=-5, opponent=+10),
+    // we use: pawnScore = blackExploitation - whiteSelfPenalty - (whiteExploitation - blackSelfPenalty)
+    // Which simplifies to: (blackExploitation + blackSelfPenalty) - (whiteExploitation + whiteSelfPenalty)
+    // This gives: Black isolated → +10, White isolated → -15. NOT the intended -5.
+    //
+    // CORRECT: The spec says own weakness = -5 TOTAL, opponent = +10 TOTAL.
+    // So: whiteWeakness uses CP_PRESERVE weights (5/6/3), not CP_ISOLATED (10/12/6).
+    // blackWeakness uses CP_ISOLATED weights (10/12/6).
+    var whiteWeakness = whiteSelfPenalty;  // own weakness at preserve rate (5)
+    var blackWeakness = blackExploitation;  // opponent weakness at exploitation rate (10)
 
     // Passed pawn bonuses (White-relative: positive = White advantage)
     var whitePassedScore = 0;
@@ -1907,7 +2001,9 @@ const betafishEngine = function() {
       whitePawnCount: whitePawns.length,
       blackPawnCount: blackPawns.length,
       whiteFileCount: whiteFileCount,
-      blackFileCount: blackFileCount
+      blackFileCount: blackFileCount,
+      whiteWeakSquares: whiteWeakSquares,
+      blackWeakSquares: blackWeakSquares
     };
   }
 
@@ -1966,62 +2062,414 @@ const betafishEngine = function() {
    Piece Activity & Counterattack
   \****************************/
 
-  function EvalPieceActivity() {
-    var whiteActivity = 0;
-    var blackActivity = 0;
-    var sq, pceNum, piece;
-
-    // Check all non-pawn, non-king pieces for territory control
-    var piecesToCheck = [PIECES.wN, PIECES.wB, PIECES.wR, PIECES.wQ,
-                         PIECES.bN, PIECES.bB, PIECES.bR, PIECES.bQ];
-
-    for (var pi = 0; pi < piecesToCheck.length; pi++) {
-      piece = piecesToCheck[pi];
-      for (pceNum = 0; pceNum < GameBoard.pceNum[piece]; pceNum++) {
-        sq = GameBoard.pList[getPieceIndex(piece, pceNum)];
-        if (PieceCol[piece] === COLOURS.WHITE) {
-          if (RanksBrd[sq] >= 4) whiteActivity++;
-        } else {
-          if (RanksBrd[sq] <= 3) blackActivity++;
-        }
-      }
-    }
-
-    return (whiteActivity - blackActivity) * CP_ACTIVITY;
+  // Utility: Chebyshev distance (king moves)
+  function ChebyshevDist(sq1, sq2) {
+    var f1 = FilesBrd[sq1], r1 = RanksBrd[sq1];
+    var f2 = FilesBrd[sq2], r2 = RanksBrd[sq2];
+    var df = Math.abs(f1 - f2);
+    var dr = Math.abs(r1 - r2);
+    return df > dr ? df : dr;
   }
 
+  // Piece-specific targeting: how relevant is this piece type to this target?
+  // Returns 1.0 for perfect relevance, 0.5 for general proximity.
+  function PieceTargetRelevance(pieceType, pieceSq, targetSq) {
+    var pf = FilesBrd[pieceSq], pr = RanksBrd[pieceSq];
+    var tf = FilesBrd[targetSq], tr = RanksBrd[targetSq];
+    var df = Math.abs(pf - tf), dr = Math.abs(pr - tr);
+
+    // Knight: distance-based, no special alignment needed
+    if (pieceType === PIECES.wN || pieceType === PIECES.bN) {
+      return (df + dr <= 4) ? 1.0 : 0.5;
+    }
+    // Rook: same file or same rank is particularly relevant
+    if (pieceType === PIECES.wR || pieceType === PIECES.bR) {
+      if (pf === tf || pr === tr) return 1.0;
+      return 0.5;
+    }
+    // Bishop: same diagonal is relevant
+    if (pieceType === PIECES.wB || pieceType === PIECES.bB) {
+      if (df === dr) return 1.0;
+      return 0.5;
+    }
+    // Queen: broad accessibility, always relevant
+    return 1.0;
+  }
+
+  // TIER 4+5: Purposeful Activity + Pressure Concentration + Counterattack
+  // Activity only counts when near an actual weakness target.
+  // Multiple pieces near the same weakness get concentration bonus.
+  // v3.0: piece-specific targeting enhances relevance.
   function EvalCounterattack(pawnInfo) {
-    var whiteActivity = 0;
-    var blackActivity = 0;
     var sq, pceNum, piece;
 
-    var piecesToCheck = [PIECES.wN, PIECES.wB, PIECES.wR, PIECES.wQ,
-                         PIECES.bN, PIECES.bB, PIECES.bR, PIECES.bQ];
+    // Collect all non-pawn, non-king pieces with type info
+    var whitePieces = []; // {sq, type}
+    var blackPieces = [];
 
-    for (var pi = 0; pi < piecesToCheck.length; pi++) {
-      piece = piecesToCheck[pi];
+    var wPieces = [PIECES.wN, PIECES.wB, PIECES.wR, PIECES.wQ];
+    var bPieces = [PIECES.bN, PIECES.bB, PIECES.bR, PIECES.bQ];
+
+    for (var pi = 0; pi < wPieces.length; pi++) {
+      piece = wPieces[pi];
       for (pceNum = 0; pceNum < GameBoard.pceNum[piece]; pceNum++) {
         sq = GameBoard.pList[getPieceIndex(piece, pceNum)];
-        if (PieceCol[piece] === COLOURS.WHITE) {
-          if (RanksBrd[sq] >= 4) whiteActivity++;
-        } else {
-          if (RanksBrd[sq] <= 3) blackActivity++;
-        }
+        whitePieces.push({sq: sq, type: piece});
       }
     }
 
-    // Bounded weakness factor: 0..1 based on opponent weakness count
-    var blackWeakFactor = Math.min(1.0, pawnInfo.blackWeaknessCount / 3.0);
-    var whiteWeakFactor = Math.min(1.0, pawnInfo.whiteWeaknessCount / 3.0);
+    for (var pi = 0; pi < bPieces.length; pi++) {
+      piece = bPieces[pi];
+      for (pceNum = 0; pceNum < GameBoard.pceNum[piece]; pceNum++) {
+        sq = GameBoard.pList[getPieceIndex(piece, pceNum)];
+        blackPieces.push({sq: sq, type: piece});
+      }
+    }
 
-    var whiteCounter = Math.min(whiteActivity * blackWeakFactor, 30);
-    var blackCounter = Math.min(blackActivity * whiteWeakFactor, 30);
+    // For each Black weakness, count White pieces with relevance weighting
+    var whitePressure = 0;
+    for (var wi = 0; wi < pawnInfo.blackWeakSquares.length; wi++) {
+      var target = pawnInfo.blackWeakSquares[wi];
+      var nearbyCount = 0;
+      for (var pi = 0; pi < whitePieces.length; pi++) {
+        var dist = ChebyshevDist(whitePieces[pi].sq, target.sq);
+        if (dist <= CP_TARGET_RANGE) {
+          var relevance = PieceTargetRelevance(whitePieces[pi].type, whitePieces[pi].sq, target.sq);
+          nearbyCount += relevance;
+        }
+      }
+      whitePressure += CP_PRESSURE[Math.min(Math.round(nearbyCount), 4)];
+    }
 
-    return whiteCounter - blackCounter;
+    // For each White weakness, count Black pieces with relevance weighting
+    var blackPressure = 0;
+    for (var wi = 0; wi < pawnInfo.whiteWeakSquares.length; wi++) {
+      var target = pawnInfo.whiteWeakSquares[wi];
+      var nearbyCount = 0;
+      for (var pi = 0; pi < blackPieces.length; pi++) {
+        var dist = ChebyshevDist(blackPieces[pi].sq, target.sq);
+        if (dist <= CP_TARGET_RANGE) {
+          var relevance = PieceTargetRelevance(blackPieces[pi].type, blackPieces[pi].sq, target.sq);
+          nearbyCount += relevance;
+        }
+      }
+      blackPressure += CP_PRESSURE[Math.min(Math.round(nearbyCount), 4)];
+    }
+
+    // Cap at CP_COUNTER_MAX
+    var whiteCounter = Math.min(whitePressure, CP_COUNTER_MAX);
+    var blackCounter = Math.min(blackPressure, CP_COUNTER_MAX);
+
+    return {
+      score: whiteCounter - blackCounter,
+      whitePieces: whitePieces,
+      blackPieces: blackPieces
+    };
   }
 
   /****************************\
-   EvalPosition (with Counterpuncher layer)
+   v3.0: Position Flexibility
+  \****************************/
+  // Prefers positions with multiple healthy future plans.
+  // Tie-breaker: 0-10 cp.
+  function EvalFlexibility(pawnInfo) {
+    var whiteBreaks = 0, blackBreaks = 0;
+    var whiteLocked = 0, blackLocked = 0;
+    var file, pceNum, sq;
+
+    // Count available pawn breaks for White
+    // A break exists on a file where White has a pawn and can push it
+    // (no enemy pawn directly ahead blocking)
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.wP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.wP, pceNum)];
+      file = FilesBrd[sq];
+      var rank = RanksBrd[sq];
+      if (rank >= 6) continue; // pawn near promotion, not a break
+      // Check if enemy pawn directly ahead blocks
+      var blocked = false;
+      for (var j = 0; j < pawnInfo.blackPawnCount; j++) {
+        // Check if any black pawn is on same file, one rank ahead
+        var bSq = GameBoard.pList[getPieceIndex(PIECES.bP, j)];
+        if (FilesBrd[bSq] === file && RanksBrd[bSq] === rank + 1) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) {
+        whiteLocked++;
+      } else {
+        whiteBreaks++;
+      }
+    }
+
+    // Count available pawn breaks for Black
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.bP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.bP, pceNum)];
+      file = FilesBrd[sq];
+      var rank = RanksBrd[sq];
+      if (rank <= 1) continue;
+      var blocked = false;
+      for (var j = 0; j < pawnInfo.whitePawnCount; j++) {
+        var wSq = GameBoard.pList[getPieceIndex(PIECES.wP, j)];
+        if (FilesBrd[wSq] === file && RanksBrd[wSq] === rank - 1) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) {
+        blackLocked++;
+      } else {
+        blackBreaks++;
+      }
+    }
+
+    // White-relative: more breaks = more flexible = good for White
+    // Locked pawns = less flexible = bad
+    var whiteFlex = Math.min(whiteBreaks * CP_FLEX_PAWN_BREAK + whiteLocked * CP_FLEX_LOCKED, CP_FLEX_MAX);
+    var blackFlex = Math.min(blackBreaks * CP_FLEX_PAWN_BREAK + blackLocked * CP_FLEX_LOCKED, CP_FLEX_MAX);
+
+    return whiteFlex - blackFlex;
+  }
+
+  /****************************\
+   v3.0: Commitment Pressure
+  \****************************/
+  // Recognizes when opponent is forced to make decisions.
+  // Opponent having fewer comfortable choices = advantage.
+  function EvalCommitmentPressure(pawnInfo) {
+    var whiteCommit = 0, blackCommit = 0;
+    var file, pceNum, sq;
+
+    // Count opponent blocked pawn files (more blocked = more committed)
+    for (file = 0; file < 8; file++) {
+      // White pawns blocked by Black pawns directly ahead
+      if (pawnInfo.whiteFileCount[file] > 0) {
+        var wSq = GameBoard.pList[getPieceIndex(PIECES.wP, 0)];
+        // Find any white pawn on this file
+        for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.wP]; pceNum++) {
+          sq = GameBoard.pList[getPieceIndex(PIECES.wP, pceNum)];
+          if (FilesBrd[sq] === file) {
+            var wr = RanksBrd[sq];
+            // Check if black pawn blocks directly ahead
+            for (var j = 0; j < pawnInfo.blackPawnCount; j++) {
+              var bSq = GameBoard.pList[getPieceIndex(PIECES.bP, j)];
+              if (FilesBrd[bSq] === file && RanksBrd[bSq] === wr + 1) {
+                whiteCommit += CP_COMMIT_BLOCKED;
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+      // Black pawns blocked by White pawns directly ahead
+      if (pawnInfo.blackFileCount[file] > 0) {
+        for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.bP]; pceNum++) {
+          sq = GameBoard.pList[getPieceIndex(PIECES.bP, pceNum)];
+          if (FilesBrd[sq] === file) {
+            var br = RanksBrd[sq];
+            for (var j = 0; j < pawnInfo.whitePawnCount; j++) {
+              var wSq = GameBoard.pList[getPieceIndex(PIECES.wP, j)];
+              if (FilesBrd[wSq] === file && RanksBrd[wSq] === br - 1) {
+                blackCommit += CP_COMMIT_BLOCKED;
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Structural tension: opponent has unresolved weaknesses
+    // More weaknesses = more decisions to make = more commitment pressure
+    blackCommit += pawnInfo.blackWeaknessCount * CP_COMMIT_TENSION;
+    whiteCommit += pawnInfo.whiteWeaknessCount * CP_COMMIT_TENSION;
+
+    // Cap
+    whiteCommit = Math.min(whiteCommit, CP_COMMIT_MAX);
+    blackCommit = Math.min(blackCommit, CP_COMMIT_MAX);
+
+    // White-relative: opponent commitment is good for White
+    return blackCommit - whiteCommit;
+  }
+
+  /****************************\
+   v3.0: Latent Threats
+  \****************************/
+  // Future punishment potential: pieces aligned with targets.
+  function EvalLatentThreats(pawnInfo, whitePieces, blackPieces) {
+    var whiteLatent = 0, blackLatent = 0;
+    var i, pi, sq, file, rank;
+
+    // Rook on semi-open file with enemy weakness ahead
+    for (pi = 0; pi < whitePieces.length; pi++) {
+      if (whitePieces[pi].type !== PIECES.wR) continue;
+      sq = whitePieces[pi].sq;
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      // Check if any black weakness is on this file ahead of the rook
+      for (i = 0; i < pawnInfo.blackWeakSquares.length; i++) {
+        var target = pawnInfo.blackWeakSquares[i];
+        if (target.file === file && target.rank > rank) {
+          whiteLatent += CP_LATENT_ROOK_FILE;
+          break;
+        }
+      }
+    }
+
+    for (pi = 0; pi < blackPieces.length; pi++) {
+      if (blackPieces[pi].type !== PIECES.bR) continue;
+      sq = blackPieces[pi].sq;
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      for (i = 0; i < pawnInfo.whiteWeakSquares.length; i++) {
+        var target = pawnInfo.whiteWeakSquares[i];
+        if (target.file === file && target.rank < rank) {
+          blackLatent += CP_LATENT_ROOK_FILE;
+          break;
+        }
+      }
+    }
+
+    // Knight near weak squares (potential outpost)
+    for (pi = 0; pi < whitePieces.length; pi++) {
+      if (whitePieces[pi].type !== PIECES.wN) continue;
+      sq = whitePieces[pi].sq;
+      for (i = 0; i < pawnInfo.blackWeakSquares.length; i++) {
+        if (ChebyshevDist(sq, pawnInfo.blackWeakSquares[i].sq) <= 2) {
+          whiteLatent += CP_LATENT_KNIGHT;
+          break;
+        }
+      }
+    }
+
+    for (pi = 0; pi < blackPieces.length; pi++) {
+      if (blackPieces[pi].type !== PIECES.bN) continue;
+      sq = blackPieces[pi].sq;
+      for (i = 0; i < pawnInfo.whiteWeakSquares.length; i++) {
+        if (ChebyshevDist(sq, pawnInfo.whiteWeakSquares[i].sq) <= 2) {
+          blackLatent += CP_LATENT_KNIGHT;
+          break;
+        }
+      }
+    }
+
+    // Cap
+    whiteLatent = Math.min(whiteLatent, CP_LATENT_MAX);
+    blackLatent = Math.min(blackLatent, CP_LATENT_MAX);
+
+    return whiteLatent - blackLatent;
+  }
+
+  /****************************\
+   v4.0: Trap Quality — Opponent Error Sensitivity
+  \****************************/
+  // Counts opponent pawns that, if advanced, create exploitable weaknesses.
+  // NOT: "opponent has few moves" (that's cramped, not counterpuncher).
+  // YES: "opponent has natural pawn pushes that create weaknesses I can exploit."
+  function EvalTrapQuality(pawnInfo) {
+    var whiteTrap = 0, blackTrap = 0;
+    var pceNum, sq, file, rank;
+
+    // For each Black pawn: check if advancing creates a weakness White can exploit
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.bP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.bP, pceNum)];
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      if (rank <= 1) continue; // already near promotion
+
+      // Would advancing create isolation? (pawn is currently supported by adjacent files)
+      var currentlySupported = false;
+      if (file > 0 && pawnInfo.blackFileCount[file - 1] > 0) currentlySupported = true;
+      if (file < 7 && pawnInfo.blackFileCount[file + 1] > 0) currentlySupported = true;
+
+      if (currentlySupported) {
+        // After advance, check if new position would be isolated
+        // (simplified: if no other black pawn on adjacent files at rank >= new_rank)
+        var newRank = rank - 1;
+        var wouldBeIsolated = true;
+        for (var j = 0; j < pawnInfo.blackPawnCount; j++) {
+          var otherSq = GameBoard.pList[getPieceIndex(PIECES.bP, j)];
+          var otherFile = FilesBrd[otherSq];
+          var otherRank = RanksBrd[otherSq];
+          if (otherSq === sq) continue;
+          if (Math.abs(otherFile - file) <= 1 && otherRank >= newRank) {
+            wouldBeIsolated = false;
+            break;
+          }
+        }
+        if (wouldBeIsolated) {
+          // Check if White has pieces near the potential weakness
+          var wSq;
+          for (var pi = 0; pi < GameBoard.pceNum[PIECES.wN]; pi++) {
+            wSq = GameBoard.pList[getPieceIndex(PIECES.wN, pi)];
+            if (ChebyshevDist(wSq, sq) <= CP_TARGET_RANGE) {
+              whiteTrap += CP_TRAP_PAWN;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // For each White pawn: check if advancing creates a weakness Black can exploit
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.wP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.wP, pceNum)];
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      if (rank >= 6) continue;
+
+      var currentlySupported = false;
+      if (file > 0 && pawnInfo.whiteFileCount[file - 1] > 0) currentlySupported = true;
+      if (file < 7 && pawnInfo.whiteFileCount[file + 1] > 0) currentlySupported = true;
+
+      if (currentlySupported) {
+        var newRank = rank + 1;
+        var wouldBeIsolated = true;
+        for (var j = 0; j < pawnInfo.whitePawnCount; j++) {
+          var otherSq = GameBoard.pList[getPieceIndex(PIECES.wP, j)];
+          var otherFile = FilesBrd[otherSq];
+          var otherRank = RanksBrd[otherSq];
+          if (otherSq === sq) continue;
+          if (Math.abs(otherFile - file) <= 1 && otherRank <= newRank) {
+            wouldBeIsolated = false;
+            break;
+          }
+        }
+        if (wouldBeIsolated) {
+          var bSq;
+          for (var pi = 0; pi < GameBoard.pceNum[PIECES.bN]; pi++) {
+            bSq = GameBoard.pList[getPieceIndex(PIECES.bN, pi)];
+            if (ChebyshevDist(bSq, sq) <= CP_TARGET_RANGE) {
+              blackTrap += CP_TRAP_PAWN;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    whiteTrap = Math.min(whiteTrap, CP_TRAP_MAX);
+    blackTrap = Math.min(blackTrap, CP_TRAP_MAX);
+
+    // White-relative: opponent's traps are bad for them = good for White
+    return whiteTrap - blackTrap;
+  }
+
+  /****************************\
+   v4.0: Activation Multiplier
+  \****************************/
+  // Smooth scaling: quiet (0.2) → pressure (0.5) → exploitation (0.8) → full (1.0)
+  // Prevents premature aggression when no weaknesses exist.
+  function ActivationMultiplier(weakness, pressure, latent, trap) {
+    // Use absolute values: activation measures total counterplay, regardless of direction
+    var activation = Math.abs(weakness) + Math.abs(pressure) + Math.abs(latent) + Math.abs(trap);
+    return Math.min(CP_ACTIVATE_BASE + activation / CP_ACTIVATE_SCALE, CP_ACTIVATE_MAX);
+  }
+
+  /****************************\
+   EvalPosition (with Counterpuncher 4.0 layer)
   \****************************/
 
   function EvalPosition() {
@@ -2067,22 +2515,77 @@ const betafishEngine = function() {
     mg_score += exposureScore;
     eg_score += exposureScore * KING_EXPOSURE_EG;
 
-    // Counterpuncher: piece activity (phase-independent)
-    var activity = EvalPieceActivity();
-    mg_score += activity;
-    eg_score += activity;
+    // Counterpuncher 4.0: purposeful activity + pressure concentration
+    var counterResult = EvalCounterattack(pawn);
+    var counterattack = counterResult.score;
 
-    // Counterpuncher: counterattack (phase-dependent)
-    var counterattack = EvalCounterattack(pawn);
-    mg_score += counterattack;
-    eg_score += counterattack * COUNTERATTACK_EG;
+    // v4.0: Trap Quality — opponent error sensitivity
+    var trapQuality = EvalTrapQuality(pawn);
+
+    // v3.0: Position Flexibility (tie-breaker, phase-weighted)
+    var flexibility = EvalFlexibility(pawn);
+    mg_score += flexibility;
+    eg_score += flexibility * FLEXIBILITY_EG;
+
+    // v3.0: Commitment Pressure (opponent constrained)
+    var commitment = EvalCommitmentPressure(pawn);
+    mg_score += commitment;
+    eg_score += commitment * COMMITMENT_EG;
+
+    // v3.0: Latent Threats (future punishment potential, MG-heavy)
+    var latent = EvalLatentThreats(pawn, counterResult.whitePieces, counterResult.blackPieces);
+    mg_score += latent;
+    eg_score += latent * LATENT_EG;
+
+    // v4.0: Activation Thresholds — smooth multiplier
+    // activation = weakness + pressure + latent + trap
+    // multiplier = 0.2 (quiet) → 1.0 (full exploitation)
+    var activation = pawn.blackWeaknessCount + counterattack + latent + trapQuality;
+    var actMultiplier = ActivationMultiplier(
+      pawn.blackWeaknessCount, counterattack, latent, trapQuality
+    );
+    // Apply activation-scaled counterattack (modulates, not stacks)
+    mg_score += counterattack * actMultiplier;
+    eg_score += counterattack * actMultiplier * COUNTERATTACK_EG;
+    // Trap quality adds independently but small
+    mg_score += trapQuality;
+    eg_score += trapQuality * TRAP_EG;
 
     // Existing phase interpolation and side-to-move normalization
     var mg_phase = gamePhase;
     var eg_phase = 24 - gamePhase;
     var score = (mg_score * mg_phase + eg_score * eg_phase) / 24;
 
-
+    // Eval logging for testing
+    if (typeof require !== 'undefined') {
+      try {
+        var fs = require('fs');
+        if (fs.existsSync('_eval_enable.log')) {
+          var baseMg = mg_score - pawnScore - exposureScore - counterattack - flexibility - commitment - latent - trapQuality;
+          var baseEg = eg_score - pawnScore - exposureScore * KING_EXPOSURE_EG - counterattack * COUNTERATTACK_EG - flexibility * FLEXIBILITY_EG - commitment * COMMITMENT_EG - latent * LATENT_EG - trapQuality * TRAP_EG;
+          var entry = {
+            fen: GenerateFEN(),
+            baseMg: baseMg,
+            baseEg: baseEg,
+            pawnScore: pawnScore,
+            exposureScore: exposureScore,
+            counterattack: counterattack,
+            trapQuality: trapQuality,
+            flexibility: flexibility,
+            commitment: commitment,
+            latent: latent,
+            actMultiplier: actMultiplier,
+            personalityFinal: score - (baseMg * mg_phase + baseEg * eg_phase) / 24,
+            totalScore: score
+          };
+          var logPath = '_eval_log.json';
+          var existing = [];
+          try { existing = JSON.parse(fs.readFileSync(logPath, 'utf8')); } catch(e) {}
+          existing.push(entry);
+          fs.writeFileSync(logPath, JSON.stringify(existing, null, 0));
+        }
+      } catch(e) {}
+    }
 
     if (GameBoard.side == COLOURS.BLACK) {
       return -score;
