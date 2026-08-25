@@ -59,3 +59,12 @@ python -m pytest tests/
 Clone the repository, install in editable mode (`pip install -e .`) and run
 the test suite with `python -m pytest`. The CLI is a thin layer over the
 `poolhall` package, so most logic is unit-testable without a terminal.
+
+## Configuration reference
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `OPENING_HOUR` | 9 | Hall opens at this hour |
+| `CLOSING_HOUR` | 23 | Hall closes at this hour |
+| `DEFAULT_RATE_PER_HOUR` | 60000 | Hourly rate in VND |
+| `VAT_RATE` | 0.08 | VAT applied on bills |
