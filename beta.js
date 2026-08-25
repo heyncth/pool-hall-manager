@@ -1029,19 +1029,31 @@ const betafishEngine = function() {
 
   function AddQuietMove(move) {
     GameBoard.moveList[GameBoard.moveListStart[GameBoard.ply + 1]] = move;
-    GameBoard.moveScores[GameBoard.moveListStart[GameBoard.ply + 1]] = 0;
+    var score = 0;
 
     if (move == GameBoard.searchKillers[GameBoard.ply]) {
-      GameBoard.moveScores[GameBoard.moveListStart[GameBoard.ply + 1]] = 900000;
+      score = 900000;
     } else if (move == GameBoard.searchKillers[GameBoard.ply + MAXDEPTH]) {
-      GameBoard.moveScores[GameBoard.moveListStart[GameBoard.ply + 1]] = 800000;
+      score = 800000;
     } else {
-      GameBoard.moveScores[GameBoard.moveListStart[GameBoard.ply + 1]] =
-        GameBoard.searchHistory[
+      score = GameBoard.searchHistory[
         GameBoard.pieces[fromSQ(move)] * BRD_SQ_NUM + toSQ(move)
-        ];
+      ];
     }
 
+    // v6.0: Counterpunch Search — prefer piece maneuvers over pawn pushes
+    // "I make your good moves unpleasant and your natural moves dangerous."
+    // In quiet/closed positions, piece coordination > pawn pushes.
+    var piece = GameBoard.pieces[fromSQ(move)];
+    if (piece !== PIECES.wP && piece !== PIECES.bP) {
+      // Piece move — small bonus for improving coordination
+      if (piece === PIECES.wN || piece === PIECES.bN) score += 200;
+      else if (piece === PIECES.wB || piece === PIECES.bB) score += 150;
+      else if (piece === PIECES.wR || piece === PIECES.bR) score += 250;
+      else if (piece === PIECES.wQ || piece === PIECES.bQ) score += 100;
+    }
+
+    GameBoard.moveScores[GameBoard.moveListStart[GameBoard.ply + 1]] = score;
     GameBoard.moveListStart[GameBoard.ply + 1]++;
   }
 
@@ -1685,7 +1697,20 @@ const betafishEngine = function() {
   var CP_ACTIVATE_SCALE   = 30;  // activation units for full multiplier
   var CP_ACTIVATE_MAX     = 1.0;
 
-
+  // v4.0: Closed-Position Preference — central architectural concept
+  // Closedness is a MULTIPLIER on activation, not an independent bonus.
+  var CP_CLOSED_LOCK      = 4;   // per opposing pawn pair on central file
+  var CP_CLOSED_BLOCKED   = 2;   // per blocked central pawn
+  var CP_CLOSED_TENSION   = 2;   // per maintained pawn contact
+  var CP_CLOSED_RESTRICT  = 3;   // opponent has limited safe pawn moves
+  var CP_CLOSED_LATENT    = 0.5; // per piece positioned to exploit future weaknesses
+  var CP_CLOSED_CONGEST   = -2;  // per piece on passive square (our congestion)
+  var CP_CLOSED_MAX       = 40;
+  var CP_CLOSED_FACTOR_MIN = 0.8;  // open position
+  var CP_CLOSED_FACTOR_MAX = 1.30; // excellent closed trap position
+  var CP_CLOSED_NEUTRAL   = 15;    // closedness value for factor = 1.0
+  var CP_CLOSED_SCALE     = 50;    // scaling for factor calculation
+  var CP_TENSION_PRESERVE = 3;    // bonus per maintained pawn tension (v6.0: stronger)
 
   var mg_pesto_table = {
     wP: mg_pawn_table,
@@ -2126,11 +2151,13 @@ const betafishEngine = function() {
       }
     }
 
-    // For each Black weakness, count White pieces with relevance weighting
+    // For each Black weakness, count White attackers AND Black defenders
     var whitePressure = 0;
     for (var wi = 0; wi < pawnInfo.blackWeakSquares.length; wi++) {
       var target = pawnInfo.blackWeakSquares[wi];
       var nearbyCount = 0;
+      var defenderCount = 0;
+      // Count White attackers
       for (var pi = 0; pi < whitePieces.length; pi++) {
         var dist = ChebyshevDist(whitePieces[pi].sq, target.sq);
         if (dist <= CP_TARGET_RANGE) {
@@ -2138,14 +2165,25 @@ const betafishEngine = function() {
           nearbyCount += relevance;
         }
       }
-      whitePressure += CP_PRESSURE[Math.min(Math.round(nearbyCount), 4)];
+      // v6.0: Count Black defenders (pieces that can defend the weakness)
+      for (var pi = 0; pi < blackPieces.length; pi++) {
+        var dist = ChebyshevDist(blackPieces[pi].sq, target.sq);
+        if (dist <= CP_TARGET_RANGE) {
+          defenderCount++;
+        }
+      }
+      // Punishment verification: only count pressure if attackers > defenders
+      var netAttackers = Math.max(0, nearbyCount - defenderCount);
+      whitePressure += CP_PRESSURE[Math.min(Math.round(netAttackers), 4)];
     }
 
-    // For each White weakness, count Black pieces with relevance weighting
+    // For each White weakness, count Black attackers AND White defenders
     var blackPressure = 0;
     for (var wi = 0; wi < pawnInfo.whiteWeakSquares.length; wi++) {
       var target = pawnInfo.whiteWeakSquares[wi];
       var nearbyCount = 0;
+      var defenderCount = 0;
+      // Count Black attackers
       for (var pi = 0; pi < blackPieces.length; pi++) {
         var dist = ChebyshevDist(blackPieces[pi].sq, target.sq);
         if (dist <= CP_TARGET_RANGE) {
@@ -2153,7 +2191,15 @@ const betafishEngine = function() {
           nearbyCount += relevance;
         }
       }
-      blackPressure += CP_PRESSURE[Math.min(Math.round(nearbyCount), 4)];
+      // v6.0: Count White defenders
+      for (var pi = 0; pi < whitePieces.length; pi++) {
+        var dist = ChebyshevDist(whitePieces[pi].sq, target.sq);
+        if (dist <= CP_TARGET_RANGE) {
+          defenderCount++;
+        }
+      }
+      var netAttackers = Math.max(0, nearbyCount - defenderCount);
+      blackPressure += CP_PRESSURE[Math.min(Math.round(netAttackers), 4)];
     }
 
     // Cap at CP_COUNTER_MAX
@@ -2363,11 +2409,149 @@ const betafishEngine = function() {
   }
 
   /****************************\
-   v4.0: Trap Quality — Opponent Error Sensitivity
+   v4.0: Closed-Position Evaluation
   \****************************/
-  // Counts opponent pawns that, if advanced, create exploitable weaknesses.
+  // Central architectural concept: closedness is a MULTIPLIER on activation.
+  // Measures: central pawn lock, blocked pawns, maintained tension, opponent restriction.
+  function EvalClosedPosition(pawnInfo) {
+    var closedness = 0;
+    var file, pceNum, sq, rank;
+
+    // A. Central pawn lock — opposing pawns on c, d, e files
+    for (file = 2; file <= 4; file++) {
+      var hasWhite = pawnInfo.whiteFileCount[file] > 0;
+      var hasBlack = pawnInfo.blackFileCount[file] > 0;
+      if (hasWhite && hasBlack) {
+        closedness += CP_CLOSED_LOCK;
+      }
+    }
+
+    // B. Blocked central pawns — pawns that cannot advance
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.wP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.wP, pceNum)];
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      if (file < 2 || file > 4) continue; // only central
+      if (rank >= 6) continue;
+      // Check if black pawn blocks directly ahead
+      for (var j = 0; j < pawnInfo.blackPawnCount; j++) {
+        var bSq = GameBoard.pList[getPieceIndex(PIECES.bP, j)];
+        if (FilesBrd[bSq] === file && RanksBrd[bSq] === rank + 1) {
+          closedness += CP_CLOSED_BLOCKED;
+          break;
+        }
+      }
+    }
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.bP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.bP, pceNum)];
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      if (file < 2 || file > 4) continue;
+      if (rank <= 1) continue;
+      for (var j = 0; j < pawnInfo.whitePawnCount; j++) {
+        var wSq = GameBoard.pList[getPieceIndex(PIECES.wP, j)];
+        if (FilesBrd[wSq] === file && RanksBrd[wSq] === rank - 1) {
+          closedness += CP_CLOSED_BLOCKED;
+          break;
+        }
+      }
+    }
+
+    // C. Maintained tension — pawn contact without forced exchanges
+    // Check for pawn pairs on adjacent files, adjacent ranks
+    for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.wP]; pceNum++) {
+      sq = GameBoard.pList[getPieceIndex(PIECES.wP, pceNum)];
+      file = FilesBrd[sq];
+      rank = RanksBrd[sq];
+      for (var j = 0; j < pawnInfo.blackPawnCount; j++) {
+        var bSq = GameBoard.pList[getPieceIndex(PIECES.bP, j)];
+        var bFile = FilesBrd[bSq];
+        var bRank = RanksBrd[bSq];
+        if (Math.abs(file - bFile) === 1 && Math.abs(rank - bRank) === 1) {
+          closedness += CP_CLOSED_TENSION;
+        }
+      }
+    }
+    // Cap tension to avoid double-counting
+    closedness = Math.min(closedness, CP_CLOSED_LOCK * 3 + CP_CLOSED_BLOCKED * 4 + CP_CLOSED_TENSION * 2);
+
+    // D. Useful closure — opponent has limited safe pawn moves
+    var opponentBlocked = 0;
+    for (file = 0; file < 8; file++) {
+      if (pawnInfo.blackFileCount[file] > 0) {
+        for (pceNum = 0; pceNum < GameBoard.pceNum[PIECES.bP]; pceNum++) {
+          sq = GameBoard.pList[getPieceIndex(PIECES.bP, pceNum)];
+          if (FilesBrd[sq] === file) {
+            rank = RanksBrd[sq];
+            if (rank <= 1) continue;
+            for (var j = 0; j < pawnInfo.whitePawnCount; j++) {
+              var wSq = GameBoard.pList[getPieceIndex(PIECES.wP, j)];
+              if (FilesBrd[wSq] === file && RanksBrd[wSq] === rank - 1) {
+                opponentBlocked++;
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+    closedness += Math.min(opponentBlocked, 4) * CP_CLOSED_RESTRICT;
+
+    // E. Own flexibility — our pieces on active squares (rank 2+ for White, rank 5- for Black)
+    // Good closedness = we can maneuver while opponent is stuck
+    var ownFlex = 0;
+    var wPieces = [PIECES.wN, PIECES.wB, PIECES.wR, PIECES.wQ];
+    for (var pi = 0; pi < wPieces.length; pi++) {
+      for (pceNum = 0; pceNum < GameBoard.pceNum[wPieces[pi]]; pceNum++) {
+        sq = GameBoard.pList[getPieceIndex(wPieces[pi], pceNum)];
+        if (RanksBrd[sq] >= 2) ownFlex++;
+      }
+    }
+    var bPieces = [PIECES.bN, PIECES.bB, PIECES.bR, PIECES.bQ];
+    for (var pi = 0; pi < bPieces.length; pi++) {
+      for (pceNum = 0; pceNum < GameBoard.pceNum[bPieces[pi]]; pceNum++) {
+        sq = GameBoard.pList[getPieceIndex(bPieces[pi], pceNum)];
+        if (RanksBrd[sq] <= 5) ownFlex++;
+      }
+    }
+    closedness += Math.min(ownFlex, 6) * CP_CLOSED_LATENT;
+
+    // F. Own congestion — our pieces on passive squares (rank 0-1 for White, rank 6-7 for Black)
+    // Bad closedness = we are also cramped
+    var ownCong = 0;
+    for (var pi = 0; pi < wPieces.length; pi++) {
+      for (pceNum = 0; pceNum < GameBoard.pceNum[wPieces[pi]]; pceNum++) {
+        sq = GameBoard.pList[getPieceIndex(wPieces[pi], pceNum)];
+        if (RanksBrd[sq] <= 1) ownCong++;
+      }
+    }
+    for (var pi = 0; pi < bPieces.length; pi++) {
+      for (pceNum = 0; pceNum < GameBoard.pceNum[bPieces[pi]]; pceNum++) {
+        sq = GameBoard.pList[getPieceIndex(bPieces[pi], pceNum)];
+        if (RanksBrd[sq] >= 6) ownCong++;
+      }
+    }
+    closedness += Math.min(ownCong, 6) * CP_CLOSED_CONGEST;
+
+    return Math.max(0, Math.min(closedness, CP_CLOSED_MAX));
+  }
+
+  // Closedness factor: 0.8 (open) → 1.0 (neutral) → 1.30 (excellent closed)
+  function ClosednessFactor(closedness) {
+    return Math.min(
+      CP_CLOSED_FACTOR_MIN + (closedness / CP_CLOSED_SCALE),
+      CP_CLOSED_FACTOR_MAX
+    );
+  }
+
+  /****************************\
+   v6.0: Trap Quality — Temptation Evaluation
+  \****************************/
+  // Counts opponent pawns that look NATURAL but create exploitable weaknesses.
   // NOT: "opponent has few moves" (that's cramped, not counterpuncher).
-  // YES: "opponent has natural pawn pushes that create weaknesses I can exploit."
+  // YES: "opponent has natural pawn pushes that LOOK GOOD but are dangerous."
+  // v6.0 refinement: pawn must be able to advance safely (not blocked by our piece).
   function EvalTrapQuality(pawnInfo) {
     var whiteTrap = 0, blackTrap = 0;
     var pceNum, sq, file, rank;
@@ -2379,6 +2563,10 @@ const betafishEngine = function() {
       rank = RanksBrd[sq];
       if (rank <= 1) continue; // already near promotion
 
+      // v6.0: Check if advance square is occupied by our piece (blocked = not tempting)
+      var advanceSq = sq - 10; // one rank down for Black
+      if (GameBoard.pieces[advanceSq] !== PIECES.EMPTY) continue;
+
       // Would advancing create isolation? (pawn is currently supported by adjacent files)
       var currentlySupported = false;
       if (file > 0 && pawnInfo.blackFileCount[file - 1] > 0) currentlySupported = true;
@@ -2386,7 +2574,6 @@ const betafishEngine = function() {
 
       if (currentlySupported) {
         // After advance, check if new position would be isolated
-        // (simplified: if no other black pawn on adjacent files at rank >= new_rank)
         var newRank = rank - 1;
         var wouldBeIsolated = true;
         for (var j = 0; j < pawnInfo.blackPawnCount; j++) {
@@ -2419,6 +2606,10 @@ const betafishEngine = function() {
       file = FilesBrd[sq];
       rank = RanksBrd[sq];
       if (rank >= 6) continue;
+
+      // v6.0: Check if advance square is occupied by opponent piece (blocked = not tempting)
+      var advanceSq = sq + 10; // one rank up for White
+      if (GameBoard.pieces[advanceSq] !== PIECES.EMPTY) continue;
 
       var currentlySupported = false;
       if (file > 0 && pawnInfo.whiteFileCount[file - 1] > 0) currentlySupported = true;
@@ -2537,13 +2728,36 @@ const betafishEngine = function() {
     mg_score += latent;
     eg_score += latent * LATENT_EG;
 
+    // v4.0: Closed-Position Preference — central architectural concept
+    // Closedness is a MULTIPLIER on activation, not an independent bonus.
+    var closedness = EvalClosedPosition(pawn);
+    var closedFactor = ClosednessFactor(closedness);
+
+    // v5.0: Tension Preservation — bonus for maintaining pawn tension
+    // "Do not release the tension" — keep the cage intact.
+    var tensionContacts = 0;
+    for (var pi = 0; pi < GameBoard.pceNum[PIECES.wP]; pi++) {
+      var wSq = GameBoard.pList[getPieceIndex(PIECES.wP, pi)];
+      var wFile = FilesBrd[wSq];
+      var wRank = RanksBrd[wSq];
+      for (var bj = 0; bj < pawn.blackPawnCount; bj++) {
+        var bSq = GameBoard.pList[getPieceIndex(PIECES.bP, bj)];
+        if (Math.abs(FilesBrd[bSq] - wFile) === 1 && Math.abs(RanksBrd[bSq] - wRank) === 1) {
+          tensionContacts++;
+        }
+      }
+    }
+    var tensionPreserve = Math.min(tensionContacts, 3) * CP_TENSION_PRESERVE;
+    mg_score += tensionPreserve;
+    eg_score += tensionPreserve * 0.5;
+
     // v4.0: Activation Thresholds — smooth multiplier
     // activation = weakness + pressure + latent + trap
     // multiplier = 0.2 (quiet) → 1.0 (full exploitation)
-    var activation = pawn.blackWeaknessCount + counterattack + latent + trapQuality;
-    var actMultiplier = ActivationMultiplier(
-      pawn.blackWeaknessCount, counterattack, latent, trapQuality
-    );
+    // CLOSEDNESS AMPLIFIES activation in closed positions
+    var baseActivation = pawn.blackWeaknessCount + Math.abs(counterattack) + Math.abs(latent) + trapQuality;
+    var scaledActivation = baseActivation * closedFactor;
+    var actMultiplier = Math.min(CP_ACTIVATE_BASE + scaledActivation / CP_ACTIVATE_SCALE, CP_ACTIVATE_MAX);
     // Apply activation-scaled counterattack (modulates, not stacks)
     mg_score += counterattack * actMultiplier;
     eg_score += counterattack * actMultiplier * COUNTERATTACK_EG;
