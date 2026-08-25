@@ -25,7 +25,17 @@ def find_item(items: list[StockItem], name: str) -> StockItem:
 
 
 def restock(items: list[StockItem], name: str, amount: int) -> StockItem:
-    """Add stock to an existing item."""
+    """
+    Add stock to an existing item.
+    
+    Args:
+        items: Description.
+        name: Description.
+        amount: Description.
+    
+    Returns:
+        Description.
+    """
     item = find_item(items, name)
     item.restock(amount)
     return item
