@@ -68,3 +68,8 @@ the test suite with `python -m pytest`. The CLI is a thin layer over the
 | `CLOSING_HOUR` | 23 | Hall closes at this hour |
 | `DEFAULT_RATE_PER_HOUR` | 60000 | Hourly rate in VND |
 | `VAT_RATE` | 0.08 | VAT applied on bills |
+
+## Troubleshooting
+
+If the CLI cannot write to `~/.poolhall/`, make sure the directory is
+writable or point `DATA_FILE` in `poolhall/config.py` somewhere else.
