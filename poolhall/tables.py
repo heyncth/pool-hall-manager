@@ -18,7 +18,16 @@ def build_tables(count: int, rate_per_hour: int = DEFAULT_RATE_PER_HOUR) -> list
 
 
 def find_table(tables: list[PoolTable], number: int) -> PoolTable:
-    """Return the table with the given number."""
+    """
+    Return the table with the given number.
+    
+    Args:
+        tables: Description.
+        number: Description.
+    
+    Returns:
+        Description.
+    """
     for table in tables:
         if table.number == number:
             return table
