@@ -1,10 +1,8 @@
 """Simple in-app notifications for low stock and reservations."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
-
 import logging
 
 
