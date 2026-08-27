@@ -99,3 +99,9 @@ def _split_bill(total: int, people: int) -> list[int]:
     base = total // people
     remainder = total % people
     return [base + (1 if index < remainder else 0) for index in range(people)]
+
+def validate_positive_amount(value: int, label: str = "amount") -> int:
+    """Return ``value`` when positive, otherwise raise ValueError."""
+    if value <= 0:
+        raise ValueError(f"{label} must be positive")
+    return value
