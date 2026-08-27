@@ -14,10 +14,10 @@ def clamp(value: int, low: int, high: int) -> int:
 def format_currency(amount: int) -> str:
     """
     Format an integer amount with thousand separators and a suffix.
-    
+
     Args:
         amount: Description.
-    
+
     Returns:
         Description.
     """
