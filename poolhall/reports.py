@@ -6,6 +6,8 @@ from datetime import date
 
 from .models import PoolTable, StockItem
 
+import logging
+
 
 def daily_summary(tables: list[PoolTable], date_iso: str) -> dict:
     """Summarize the day: total tables and current occupancy."""
@@ -50,3 +52,5 @@ def inventory_report(items: list[StockItem]) -> list[dict]:
 def today_iso() -> str:
     """Return today's date as an ISO string."""
     return date.today().isoformat()
+
+logger = logging.getLogger(__name__)
