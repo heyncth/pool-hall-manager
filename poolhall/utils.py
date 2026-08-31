@@ -27,7 +27,15 @@ def format_currency(amount: int) -> str:
 
 
 def parse_time(value: str) -> time:
-    """Parse a 24h ``HH:MM`` string into a ``time`` object."""
+    """
+    Parse a 24h ``HH:MM`` string into a ``time`` object.
+    
+    Args:
+        value: Description.
+    
+    Returns:
+        Description.
+    """
     hour, minute = value.split(":")
     return time(hour=int(hour), minute=int(minute))
 
