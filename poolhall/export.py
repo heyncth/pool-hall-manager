@@ -8,7 +8,16 @@ from typing import Iterable
 
 
 def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
-    """Render a list of dicts as a CSV string."""
+    """
+    Render a list of dicts as a CSV string.
+    
+    Args:
+        rows: Description.
+        fieldnames: Description.
+    
+    Returns:
+        Description.
+    """
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=fieldnames)
     writer.writeheader()
