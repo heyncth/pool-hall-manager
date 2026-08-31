@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from datetime import datetime, time
 
+import logging
+
 
 def clamp(value: int, low: int, high: int) -> int:
     """Constrain ``value`` between ``low`` and ``high``."""
@@ -51,3 +53,5 @@ def _ensure_list(value) -> list:
     if isinstance(value, list):
         return value
     return [value]
+
+logger = logging.getLogger(__name__)
