@@ -8,6 +8,8 @@ from .config import VAT_RATE
 from .models import PaymentMethod
 from .pricing import base_cost, minutes_between, round_half_up
 
+import logging
+
 
 @dataclass
 class Bill:
@@ -105,3 +107,5 @@ def validate_positive_amount(value: int, label: str = "amount") -> int:
     if value <= 0:
         raise ValueError(f"{label} must be positive")
     return value
+
+logger = logging.getLogger(__name__)
