@@ -33,3 +33,6 @@ def test_bill_to_dict_roundtrip():
     end = datetime(2026, 8, 1, 11, 0)
     bill = calculate_bill(2, start, end, 60_000)
     assert bill.to_dict()["table_number"] == 2
+
+def test_apply_discount_zero():
+    assert apply_discount(100_000, 0) == 0
