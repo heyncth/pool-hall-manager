@@ -54,7 +54,16 @@ def read_text(path: Path) -> str | None:
 
 
 def write_text(path: Path, content: str) -> None:
-    """Write text content to a file atomically."""
+    """
+    Write text content to a file atomically.
+    
+    Args:
+        path: Description.
+        content: Description.
+    
+    Returns:
+        Description.
+    """
     _atomic_write(path, content)
 
 def _is_valid_json(text: str) -> bool:
