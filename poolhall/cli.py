@@ -15,6 +15,8 @@ from .storage import load_json, save_json
 from .tables import add_reservation, build_tables, close_table, find_table, open_table
 from .utils import format_currency, parse_time
 
+import logging
+
 
 def _load() -> dict:
     """Load persisted state, or an empty dict on first run."""
@@ -188,3 +190,5 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+logger = logging.getLogger(__name__)
