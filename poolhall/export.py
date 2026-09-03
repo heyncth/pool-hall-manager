@@ -1,10 +1,9 @@
 """Export pool hall data to CSV files."""
 
 from __future__ import annotations
-
+from typing import Iterable
 import csv
 import io
-from typing import Iterable
 
 
 def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
