@@ -36,3 +36,5 @@ DEPOSIT_AMOUNT = 100_000
 logger = logging.getLogger(__name__)
 
 BOOKING_BUFFER_MINUTES = 15
+
+MAX_RESERVATION_DAYS = 30
