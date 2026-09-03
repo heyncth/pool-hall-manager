@@ -1,7 +1,6 @@
 """Tests for the cli module."""
 
 from __future__ import annotations
-
 import poolhall.cli as mod
 
 
