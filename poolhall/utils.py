@@ -63,3 +63,9 @@ def _ensure_list(value) -> list:
     return [value]
 
 logger = logging.getLogger(__name__)
+
+def _coerce_int(value) -> int:
+    """Coerce a value to int, raising ValueError for bad input."""
+    if isinstance(value, bool):
+        raise ValueError("bool is not an int")
+    return int(value)
