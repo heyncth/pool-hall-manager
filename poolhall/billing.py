@@ -60,7 +60,20 @@ def calculate_bill(
     discount_percent: float = 0.0,
     payment_method: PaymentMethod = PaymentMethod.CASH,
 ) -> Bill:
-    """Compute the bill for a table session."""
+    """
+    Compute the bill for a table session.
+    
+    Args:
+        table_number: Description.
+        start: Description.
+        end: Description.
+        rate_per_hour: Description.
+        discount_percent: Description.
+        payment_method: Description.
+    
+    Returns:
+        Description.
+    """
     duration = minutes_between(start, end)
     subtotal = base_cost(duration, rate_per_hour)
     discount = apply_discount(subtotal, discount_percent)
