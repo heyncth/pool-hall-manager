@@ -36,3 +36,9 @@ def test_bill_to_dict_roundtrip():
 
 def test_apply_discount_zero():
     assert apply_discount(100_000, 0) == 0
+
+def test_calculate_bill_overtime():
+    start = datetime(2026, 8, 1, 10, 0)
+    end = datetime(2026, 8, 1, 11, 30)
+    bill = calculate_bill(1, start, end, 60_000)
+    assert bill.duration_minutes == 90
