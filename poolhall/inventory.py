@@ -61,3 +61,5 @@ def validate_quantity(value: int) -> int:
 def _sold_value(item) -> int:
     """Value of a single unit sold, in VND."""
     return item.unit_price
+
+SERVICE_CHARGE = 10_000
