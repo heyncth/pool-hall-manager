@@ -58,11 +58,3 @@ def hourly_tiers() -> list[dict]:
 MIN_CHARGE_MINUTES = 30
 
 logger = logging.getLogger(__name__)
-
-def _peak_adjusted(cost: int, hour: int) -> int:
-    """Apply the peak-hour factor to a cost, rounded up."""
-    tiers = hourly_tiers()
-    for tier in tiers:
-        if tier["start"] <= hour < tier["end"]:
-            return round_half_up(cost * tier["factor"])
-    return cost
