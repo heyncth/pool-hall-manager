@@ -1,11 +1,9 @@
 """Small shared helpers used across the project."""
 
 from __future__ import annotations
-
-import re
 from datetime import datetime, time
-
 import logging
+import re
 
 
 def clamp(value: int, low: int, high: int) -> int:
