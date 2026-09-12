@@ -5,6 +5,8 @@ from __future__ import annotations
 from .config import LOW_STOCK_THRESHOLD
 from .models import StockItem
 
+import logging
+
 
 def create_items() -> list[StockItem]:
     """Return the default stock catalogue."""
@@ -63,3 +65,5 @@ def _sold_value(item) -> int:
     return item.unit_price
 
 SERVICE_CHARGE = 10_000
+
+logger = logging.getLogger(__name__)
