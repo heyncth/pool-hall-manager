@@ -23,7 +23,16 @@ def _atomic_write(path: Path, content: str) -> None:
 
 
 def save_json(path: Path, data: Any) -> None:
-    """Serialize ``data`` to a JSON file safely."""
+    """
+    Serialize ``data`` to a JSON file safely.
+    
+    Args:
+        path: Description.
+        data: Description.
+    
+    Returns:
+        Description.
+    """
     _atomic_write(path, json.dumps(data, indent=2, ensure_ascii=False))
 
 
