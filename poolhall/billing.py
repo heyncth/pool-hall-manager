@@ -91,7 +91,15 @@ def calculate_bill(
 
 
 def format_bill(bill: Bill) -> str:
-    """Render a bill as a printable receipt."""
+    """
+    Render a bill as a printable receipt.
+    
+    Args:
+        bill: Description.
+    
+    Returns:
+        Description.
+    """
     lines = [
         "= POOL HALL RECEIPT =",
         f"Table      : {bill.table_number}",
