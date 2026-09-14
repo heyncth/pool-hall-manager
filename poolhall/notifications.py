@@ -35,10 +35,10 @@ def low_stock_notices(items) -> list[str]:
 def reservation_notice(reservation) -> str:
     """
     Build a notice for an upcoming reservation.
-
+    
     Args:
         reservation: Description.
-
+    
     Returns:
         Description.
     """
