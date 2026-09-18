@@ -27,3 +27,15 @@ logger = logging.getLogger(__name__)
 BOOKING_BUFFER_MINUTES = 15
 
 MAX_RESERVATION_DAYS = 30
+
+def _env_int(name: str, default: int) -> int:
+    """Read an integer from the environment, falling back to ``default``."""
+    import os
+
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
