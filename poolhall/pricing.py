@@ -1,9 +1,8 @@
 """Pricing rules: hourly tiers, rounding and overtime."""
 
 from __future__ import annotations
-import math
-
 import logging
+import math
 
 MINUTES_PER_HOUR = 60
 ROUNDING_GRANULARITY = 15
