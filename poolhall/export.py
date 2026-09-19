@@ -26,7 +26,16 @@ def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
 
 
 def export_inventory(items, path: str) -> int:
-    """Write inventory rows to a CSV file, returning the row count."""
+    """
+    Write inventory rows to a CSV file, returning the row count.
+    
+    Args:
+        items: Description.
+        path: Description.
+    
+    Returns:
+        Description.
+    """
     rows = [
         {"name": item.name, "quantity": item.quantity, "unit_price": item.unit_price}
         for item in items
