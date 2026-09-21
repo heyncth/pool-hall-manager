@@ -1,7 +1,6 @@
 """Tests for the export module."""
 
 from __future__ import annotations
-
 import poolhall.export as mod
 
 
