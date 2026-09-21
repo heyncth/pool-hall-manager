@@ -45,7 +45,15 @@ def _items(state: dict) -> list[StockItem]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the argument parser for the CLI."""
+    """
+    Build the argument parser for the CLI.
+    
+    Args:
+        (none)
+    
+    Returns:
+        Description.
+    """
     parser = argparse.ArgumentParser(prog="poolhall", description="Manage pool hall tables, billing and stock.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command")
