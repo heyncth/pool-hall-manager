@@ -67,7 +67,3 @@ def _sold_value(item) -> int:
 SERVICE_CHARGE = 10_000
 
 logger = logging.getLogger(__name__)
-
-def _stock_value(items: list) -> int:
-    """Total value of all stock at current unit prices."""
-    return sum(item.quantity * item.unit_price for item in items)
