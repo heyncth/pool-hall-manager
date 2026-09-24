@@ -76,9 +76,6 @@ def write_text(path: Path, content: str) -> None:
     _atomic_write(path, content)
 
 
-def _backup_path(path: Path) -> Path:
-    """Return the backup path for a file (a sibling with a .bak suffix)."""
-    return path.with_suffix(path.suffix + ".bak")
 
 def _is_valid_json(text: str) -> bool:
     """Return True when ``text`` parses as JSON."""
