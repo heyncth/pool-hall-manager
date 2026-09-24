@@ -62,7 +62,7 @@ def calculate_bill(
 ) -> Bill:
     """
     Compute the bill for a table session.
-    
+
     Args:
         table_number: Description.
         start: Description.
@@ -70,7 +70,7 @@ def calculate_bill(
         rate_per_hour: Description.
         discount_percent: Description.
         payment_method: Description.
-    
+
     Returns:
         Description.
     """
@@ -93,10 +93,10 @@ def calculate_bill(
 def format_bill(bill: Bill) -> str:
     """
     Render a bill as a printable receipt.
-    
+
     Args:
         bill: Description.
-    
+
     Returns:
         Description.
     """
@@ -119,11 +119,11 @@ def _percent_of(amount: int, percent: float) -> int:
 def validate_positive_amount(value: int, label: str = "amount") -> int:
     """
     Return ``value`` when positive, otherwise raise ValueError.
-    
+
     Args:
         value: Description.
         label: Description.
-    
+
     Returns:
         Description.
     """
