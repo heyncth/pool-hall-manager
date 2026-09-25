@@ -5,6 +5,8 @@ from typing import Iterable
 import csv
 import io
 
+import logging
+
 
 def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
     """
@@ -44,3 +46,5 @@ def export_inventory(items, path: str) -> int:
     with open(path, "w", encoding="utf-8", newline="") as handle:
         handle.write(text)
     return len(rows)
+
+logger = logging.getLogger(__name__)
