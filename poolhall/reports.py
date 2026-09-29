@@ -23,10 +23,10 @@ def daily_summary(tables: list[PoolTable], date_iso: str) -> dict:
 def revenue_summary(bills: list[dict]) -> dict:
     """
     Aggregate revenue from a list of bill dicts.
-    
+
     Args:
         bills: Description.
-    
+
     Returns:
         Description.
     """
