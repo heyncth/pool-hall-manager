@@ -11,11 +11,11 @@ import logging
 def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
     """
     Render a list of dicts as a CSV string.
-    
+
     Args:
         rows: Description.
         fieldnames: Description.
-    
+
     Returns:
         Description.
     """
@@ -30,11 +30,11 @@ def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
 def export_inventory(items, path: str) -> int:
     """
     Write inventory rows to a CSV file, returning the row count.
-    
+
     Args:
         items: Description.
         path: Description.
-    
+
     Returns:
         Description.
     """
