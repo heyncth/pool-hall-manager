@@ -9,7 +9,15 @@ import logging
 
 
 def create_items() -> list[StockItem]:
-    """Return the default stock catalogue."""
+    """
+    Return the default stock catalogue.
+    
+    Args:
+        (none)
+    
+    Returns:
+        Description.
+    """
     return [
         StockItem(name="Beer (330ml)", quantity=48, unit_price=30_000, min_stock=12),
         StockItem(name="Soda (330ml)", quantity=60, unit_price=15_000, min_stock=12),
