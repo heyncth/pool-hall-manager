@@ -27,10 +27,10 @@ def format_currency(amount: int) -> str:
 def parse_time(value: str) -> time:
     """
     Parse a 24h ``HH:MM`` string into a ``time`` object.
-    
+
     Args:
         value: Description.
-    
+
     Returns:
         Description.
     """
