@@ -22,10 +22,10 @@ class Notification:
 def low_stock_notices(items) -> list[str]:
     """
     Build a notice for every item below its minimum stock.
-
+    
     Args:
         items: Description.
-
+    
     Returns:
         Description.
     """
