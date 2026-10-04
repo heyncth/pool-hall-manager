@@ -90,3 +90,10 @@ def _count_by_status(tables: list, status: TableStatus) -> int:
     return sum(1 for table in tables if table.status is status)
 
 MAX_RESERVATION_DURATION = 240
+
+def _next_free_number(tables: list) -> int:
+    """Return the smallest table number that is currently free."""
+    for table in sorted(tables, key=lambda t: t.number):
+        if table.is_available():
+            return table.number
+    raise ValueError("no free tables")
