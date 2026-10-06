@@ -11,11 +11,11 @@ import logging
 def to_csv(rows: Iterable[dict], fieldnames: list[str]) -> str:
     """
     Render a list of dicts as a CSV string.
-
+    
     Args:
         rows: Description.
         fieldnames: Description.
-
+    
     Returns:
         Description.
     """
