@@ -52,7 +52,17 @@ def restock(items: list[StockItem], name: str, amount: int) -> StockItem:
 
 
 def consume(items: list[StockItem], name: str, amount: int) -> StockItem:
-    """Remove stock after a sale."""
+    """
+    Remove stock after a sale.
+    
+    Args:
+        items: Description.
+        name: Description.
+        amount: Description.
+    
+    Returns:
+        Description.
+    """
     item = find_item(items, name)
     item.consume(amount)
     return item
