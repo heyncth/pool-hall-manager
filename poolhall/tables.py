@@ -78,7 +78,16 @@ def has_conflict(reservations: list[Reservation], candidate: Reservation) -> boo
 
 
 def add_reservation(reservations: list[Reservation], candidate: Reservation) -> Reservation:
-    """Register a reservation, rejecting time conflicts."""
+    """
+    Register a reservation, rejecting time conflicts.
+    
+    Args:
+        reservations: Description.
+        candidate: Description.
+    
+    Returns:
+        Description.
+    """
     if has_conflict(reservations, candidate):
         raise ValueError("reservation conflicts with an existing booking")
     reservations.append(candidate)
