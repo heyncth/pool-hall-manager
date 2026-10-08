@@ -129,3 +129,11 @@ def validate_positive_amount(value: int, label: str = "amount") -> int:
     return value
 
 logger = logging.getLogger(__name__)
+
+def _split_bill(total: int, people: int) -> list[int]:
+    """Split a total evenly across people, the remainder going to the first."""
+    if people <= 0:
+        raise ValueError("people must be positive")
+    base = total // people
+    remainder = total % people
+    return [base + (1 if index < remainder else 0) for index in range(people)]
