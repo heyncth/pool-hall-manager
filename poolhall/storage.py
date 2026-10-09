@@ -86,8 +86,5 @@ def _is_valid_json(text: str) -> bool:
     except ValueError:
         return False
 
-def _backup_path(path: Path) -> Path:
-    """Return the backup path for a file (a sibling with a .bak suffix)."""
-    return path.with_suffix(path.suffix + ".bak")
 
 logger = logging.getLogger(__name__)
