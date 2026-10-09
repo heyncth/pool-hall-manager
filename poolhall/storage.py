@@ -7,6 +7,8 @@ import json
 import os
 import tempfile
 
+import logging
+
 
 def _atomic_write(path: Path, content: str) -> None:
     """Write content to ``path`` atomically through a temp file."""
@@ -87,3 +89,5 @@ def _is_valid_json(text: str) -> bool:
 def _backup_path(path: Path) -> Path:
     """Return the backup path for a file (a sibling with a .bak suffix)."""
     return path.with_suffix(path.suffix + ".bak")
+
+logger = logging.getLogger(__name__)
