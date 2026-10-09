@@ -1,12 +1,11 @@
 """JSON persistence for the pool hall state."""
 
 from __future__ import annotations
-
+from pathlib import Path
+from typing import Any
 import json
 import os
 import tempfile
-from pathlib import Path
-from typing import Any
 
 
 def _atomic_write(path: Path, content: str) -> None:
