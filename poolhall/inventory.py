@@ -11,10 +11,10 @@ import logging
 def create_items() -> list[StockItem]:
     """
     Return the default stock catalogue.
-    
+
     Args:
         (none)
-    
+
     Returns:
         Description.
     """
@@ -37,12 +37,12 @@ def find_item(items: list[StockItem], name: str) -> StockItem:
 def restock(items: list[StockItem], name: str, amount: int) -> StockItem:
     """
     Add stock to an existing item.
-    
+
     Args:
         items: Description.
         name: Description.
         amount: Description.
-    
+
     Returns:
         Description.
     """
@@ -54,12 +54,12 @@ def restock(items: list[StockItem], name: str, amount: int) -> StockItem:
 def consume(items: list[StockItem], name: str, amount: int) -> StockItem:
     """
     Remove stock after a sale.
-    
+
     Args:
         items: Description.
         name: Description.
         amount: Description.
-    
+
     Returns:
         Description.
     """
@@ -71,11 +71,11 @@ def consume(items: list[StockItem], name: str, amount: int) -> StockItem:
 def low_stock(items: list[StockItem], threshold: int = LOW_STOCK_THRESHOLD) -> list[StockItem]:
     """
     Return items at or below the low-stock threshold.
-    
+
     Args:
         items: Description.
         threshold: Description.
-    
+
     Returns:
         Description.
     """
