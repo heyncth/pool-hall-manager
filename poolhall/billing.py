@@ -116,11 +116,11 @@ def format_bill(bill: Bill) -> str:
 def validate_positive_amount(value: int, label: str = "amount") -> int:
     """
     Return ``value`` when positive, otherwise raise ValueError.
-
+    
     Args:
         value: Description.
         label: Description.
-
+    
     Returns:
         Description.
     """
