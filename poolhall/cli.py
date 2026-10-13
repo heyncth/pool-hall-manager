@@ -47,10 +47,10 @@ def _items(state: dict) -> list[StockItem]:
 def build_parser() -> argparse.ArgumentParser:
     """
     Build the argument parser for the CLI.
-
+    
     Args:
         (none)
-
+    
     Returns:
         Description.
     """
