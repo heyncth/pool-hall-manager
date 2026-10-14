@@ -57,3 +57,9 @@ logger = logging.getLogger(__name__)
 
 
 TOP_N = 5
+
+def _percent(part: int, whole: int) -> float:
+    """Percentage of ``part`` over ``whole``, or 0.0 when whole is zero."""
+    if whole <= 0:
+        return 0.0
+    return round(part * 100 / whole, 1)
