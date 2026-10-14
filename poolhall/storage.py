@@ -38,7 +38,16 @@ def save_json(path: Path, data: Any) -> None:
 
 
 def load_json(path: Path, default: Any = None) -> Any:
-    """Load a JSON file; return ``default`` when missing or broken."""
+    """
+    Load a JSON file; return ``default`` when missing or broken.
+    
+    Args:
+        path: Description.
+        default: Description.
+    
+    Returns:
+        Description.
+    """
     if not path.exists():
         return default
     try:
