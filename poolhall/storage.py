@@ -4,10 +4,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import json
+import logging
 import os
 import tempfile
-
-import logging
 
 
 def _atomic_write(path: Path, content: str) -> None:
