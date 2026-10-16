@@ -1,7 +1,6 @@
 """Tests for the notifications module."""
 
 from __future__ import annotations
-
 import poolhall.notifications as mod
 
 
