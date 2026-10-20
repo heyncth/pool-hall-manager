@@ -25,11 +25,11 @@ def _atomic_write(path: Path, content: str) -> None:
 def save_json(path: Path, data: Any) -> None:
     """
     Serialize ``data`` to a JSON file safely.
-    
+
     Args:
         path: Description.
         data: Description.
-    
+
     Returns:
         Description.
     """
@@ -39,11 +39,11 @@ def save_json(path: Path, data: Any) -> None:
 def load_json(path: Path, default: Any = None) -> Any:
     """
     Load a JSON file; return ``default`` when missing or broken.
-    
+
     Args:
         path: Description.
         default: Description.
-    
+
     Returns:
         Description.
     """
@@ -59,10 +59,10 @@ def load_json(path: Path, default: Any = None) -> Any:
 def read_text(path: Path) -> str | None:
     """
     Return file text, or None when the file is missing.
-    
+
     Args:
         path: Description.
-    
+
     Returns:
         Description.
     """
@@ -74,16 +74,15 @@ def read_text(path: Path) -> str | None:
 def write_text(path: Path, content: str) -> None:
     """
     Write text content to a file atomically.
-    
+
     Args:
         path: Description.
         content: Description.
-    
+
     Returns:
         Description.
     """
     _atomic_write(path, content)
-
 
 
 def _is_valid_json(text: str) -> bool:
