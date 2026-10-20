@@ -73,3 +73,9 @@ def _quantize(value: int, step: int) -> int:
     return (value // step) * step
 
 PEAK_FACTOR = 1.2
+
+def validate_rate(rate_per_hour: int) -> int:
+    """Return the rate when it is strictly positive."""
+    if rate_per_hour <= 0:
+        raise ValueError("rate_per_hour must be positive")
+    return rate_per_hour
