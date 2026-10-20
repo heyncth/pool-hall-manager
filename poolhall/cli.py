@@ -47,10 +47,10 @@ def _items(state: dict) -> list[StockItem]:
 def build_parser() -> argparse.ArgumentParser:
     """
     Build the argument parser for the CLI.
-    
+
     Args:
         (none)
-    
+
     Returns:
         Description.
     """
@@ -175,10 +175,10 @@ _HANDLERS = {
 def main(argv: list[str] | None = None) -> int:
     """
     Entry point for the ``poolhall`` console script.
-    
+
     Args:
         argv: Description.
-    
+
     Returns:
         Description.
     """
