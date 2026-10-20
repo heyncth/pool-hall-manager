@@ -62,3 +62,9 @@ def _coerce_int(value) -> int:
     if isinstance(value, bool):
         raise ValueError("bool is not an int")
     return int(value)
+
+def _ensure_list(value) -> list:
+    """Return ``value`` wrapped in a list when it is not already one."""
+    if isinstance(value, list):
+        return value
+    return [value]
