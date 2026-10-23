@@ -7,6 +7,8 @@ from datetime import datetime
 from .config import DEFAULT_RATE_PER_HOUR, POOL_TABLE_TYPES
 from .models import PoolTable, Reservation, TableStatus
 
+import logging
+
 
 def build_tables(count: int, rate_per_hour: int = DEFAULT_RATE_PER_HOUR) -> list[PoolTable]:
     """Create ``count`` tables with alternating kinds."""
@@ -106,3 +108,5 @@ def _next_free_number(tables: list) -> int:
         if table.is_available():
             return table.number
     raise ValueError("no free tables")
+
+logger = logging.getLogger(__name__)
