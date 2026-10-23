@@ -129,3 +129,7 @@ def validate_positive_amount(value: int, label: str = "amount") -> int:
     return value
 
 logger = logging.getLogger(__name__)
+
+def _percent_of(amount: int, percent: float) -> int:
+    """Return ``percent`` percent of ``amount``, rounded to the nearest int."""
+    return round_half_up(amount * percent / 100)
