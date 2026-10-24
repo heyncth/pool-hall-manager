@@ -37,7 +37,15 @@ def revenue_summary(bills: list[dict]) -> dict:
 
 
 def inventory_report(items: list[StockItem]) -> list[dict]:
-    """Build a printable inventory status report."""
+    """
+    Build a printable inventory status report.
+    
+    Args:
+        items: Description.
+    
+    Returns:
+        Description.
+    """
     return [
         {
             "name": item.name,
