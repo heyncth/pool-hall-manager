@@ -51,7 +51,17 @@ def slugify(value: str) -> str:
 
 
 def is_within_hours(when: datetime, opening: int, closing: int) -> bool:
-    """Return True when ``when`` falls inside opening hours."""
+    """
+    Return True when ``when`` falls inside opening hours.
+    
+    Args:
+        when: Description.
+        opening: Description.
+        closing: Description.
+    
+    Returns:
+        Description.
+    """
     return opening <= when.hour < closing
 
 
