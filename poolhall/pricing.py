@@ -74,3 +74,9 @@ def validate_rate(rate_per_hour: int) -> int:
     if rate_per_hour <= 0:
         raise ValueError("rate_per_hour must be positive")
     return rate_per_hour
+
+def _quantize(value: int, step: int) -> int:
+    """Round ``value`` down to the nearest multiple of ``step``."""
+    if step <= 0:
+        raise ValueError("step must be positive")
+    return (value // step) * step
