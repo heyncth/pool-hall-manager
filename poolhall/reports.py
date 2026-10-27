@@ -10,7 +10,16 @@ import logging
 
 
 def daily_summary(tables: list[PoolTable], date_iso: str) -> dict:
-    """Summarize the day: total tables and current occupancy."""
+    """
+    Summarize the day: total tables and current occupancy.
+    
+    Args:
+        tables: Description.
+        date_iso: Description.
+    
+    Returns:
+        Description.
+    """
     occupied = [t for t in tables if t.status.value == "occupied"]
     return {
         "date": date_iso,
