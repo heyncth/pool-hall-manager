@@ -66,11 +66,6 @@ def _peak_adjusted(cost: int, hour: int) -> int:
             return round_half_up(cost * tier["factor"])
     return cost
 
-def _quantize(value: int, step: int) -> int:
-    """Round ``value`` down to the nearest multiple of ``step``."""
-    if step <= 0:
-        raise ValueError("step must be positive")
-    return (value // step) * step
 
 PEAK_FACTOR = 1.2
 
