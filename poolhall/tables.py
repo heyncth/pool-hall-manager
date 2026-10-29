@@ -110,3 +110,8 @@ def _next_free_number(tables: list) -> int:
     raise ValueError("no free tables")
 
 logger = logging.getLogger(__name__)
+
+def validate_table_number(number: int, tables: list) -> int:
+    """Return ``number`` when it matches an existing table."""
+    find_table(tables, number)
+    return number
