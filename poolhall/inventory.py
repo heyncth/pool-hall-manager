@@ -87,10 +87,6 @@ def validate_quantity(value: int) -> int:
         raise ValueError("quantity cannot be negative")
     return value
 
-def _sold_value(item) -> int:
-    """Value of a single unit sold, in VND."""
-    return item.unit_price
 
 SERVICE_CHARGE = 10_000
-
 logger = logging.getLogger(__name__)
