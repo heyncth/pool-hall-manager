@@ -90,3 +90,7 @@ def validate_quantity(value: int) -> int:
 
 SERVICE_CHARGE = 10_000
 logger = logging.getLogger(__name__)
+
+def _sold_value(item) -> int:
+    """Value of a single unit sold, in VND."""
+    return item.unit_price
