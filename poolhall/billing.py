@@ -62,7 +62,7 @@ def calculate_bill(
 ) -> Bill:
     """
     Compute the bill for a table session.
-
+    
     Args:
         table_number: Description.
         start: Description.
@@ -70,7 +70,7 @@ def calculate_bill(
         rate_per_hour: Description.
         discount_percent: Description.
         payment_method: Description.
-
+    
     Returns:
         Description.
     """
