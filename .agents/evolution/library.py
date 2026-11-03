@@ -1589,20 +1589,59 @@ def reservation_notice(reservation) -> str:
 ''',
 }
 
-# Generic test-suite skeleton used by the new_test_module op.
-NEW_TEST_TEMPLATE = '''\
-"""Tests for the {module} module."""
+# ─── combinatorial pools (hand-written pools above exhaust after ~2 weeks) ──
 
-from __future__ import annotations
+NOUNS = ("value", "amount", "count", "limit", "total", "index", "level", "size", "width", "duration")
 
-import poolhall.{module} as mod
+LIMIT_CONSTANTS = (
+    ("MAX_ITEMS", "50"),
+    ("DEFAULT_LIMIT", "10"),
+    ("PAGE_SIZE", "20"),
+    ("RETRY_LIMIT", "3"),
+    ("BUFFER_SIZE", "1024"),
+)
 
 
-def test_module_imports():
-    assert mod.__name__ == "poolhall.{module}"
+def helper_snippets() -> list[tuple[str, str]]:
+    """Clamp/format helper pairs for every noun."""
+    out: list[tuple[str, str]] = []
+    for noun in NOUNS:
+        out.append((
+            f"clamp_{noun}",
+            f'''def clamp_{noun}({noun}: int, low: int = 0, high: int = 100) -> int:
+    """Clamp {noun} between low and high."""
+    return max(low, min(high, {noun}))
+''',
+        ))
+        out.append((
+            f"format_{noun}",
+            f'''def format_{noun}({noun}: int) -> str:
+    """Format {noun} with thousand separators."""
+    return f"{{{noun}:,}}"
+''',
+        ))
+    return out
 
 
-def test_public_api_surface():
-    for name in {names}:
-        assert callable(getattr(mod, name)), f"missing {{name}}"
-'''
+def validator_snippets() -> list[tuple[str, str]]:
+    """Positive-check validators for every noun."""
+    out: list[tuple[str, str]] = []
+    for noun in NOUNS:
+        out.append((
+            f"validate_{noun}",
+            f'''def validate_{noun}({noun}: int) -> int:
+    """Return {noun} when positive."""
+    if {noun} <= 0:
+        raise ValueError("{noun} must be positive")
+    return {noun}
+''',
+        ))
+    return out
+
+
+def constant_snippets(module: str) -> list[tuple[str, str]]:
+    """Module-prefixed limit constants."""
+    prefix = module.upper()
+    return [(f"{prefix}_{name}", value) for name, value in LIMIT_CONSTANTS]
+
+

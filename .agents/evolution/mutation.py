@@ -19,6 +19,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -112,10 +113,11 @@ def function_index(repo: Path, rel: Path) -> list[dict]:
     except SyntaxError:
         return []
     funcs: list[dict] = []
+    source_lines = source.splitlines()
     for node in tree.body:
         if not isinstance(node, ast.FunctionDef):
             continue
-        args_text = ast.get_source_segment(source, node.args)
+        header = source_lines[node.lineno - 1] if node.lineno <= len(source_lines) else ""
         funcs.append(
             {
                 "name": node.name,
@@ -125,7 +127,7 @@ def function_index(repo: Path, rel: Path) -> list[dict]:
                 "n_defaults": len(node.args.defaults),
                 "lineno": node.lineno,
                 "end_lineno": node.end_lineno,
-                "single_line": args_text is not None and "\n" not in args_text,
+                "single_line": header.lstrip().startswith("def ") and header.rstrip().endswith(":"),
                 "has_decorators": bool(node.decorator_list),
                 "docstring": ast.get_docstring(node),
             }
@@ -160,19 +162,22 @@ def _signature_line(name: str, args_node: ast.arguments, returns: ast.expr | Non
     return line + ":"
 
 
-def _enhanced_docstring(func: dict) -> str:
-    """Build a fuller docstring from an existing one and the real signature."""
+def _enhanced_docstring(func: dict) -> str | None:
+    """Extend an existing docstring with real arg types, or None when nothing new can be said."""
     first_line = ""
     if func["docstring"]:
         first_line = func["docstring"].strip().splitlines()[0].rstrip(".")
     if not first_line:
-        first_line = f"Describe what {func['name']} does"
-    lines = [first_line + ".", "", "Args:"]
+        return None
+    hints = {arg: _arg_type(arg) for arg in func["args"]}
+    if not any(hints.values()):
+        return None
+    lines = [first_line + "."]
     if func["args"]:
-        lines.extend(f"    {arg}: Description." for arg in func["args"])
-    else:
-        lines.append("    (none)")
-    lines.extend(["", "Returns:", "    Description."])
+        lines.append("")
+        lines.append("Args:")
+        for arg in func["args"]:
+            lines.append(f"    {arg}: {hints[arg]}" if hints[arg] else f"    {arg}:")
     return "\n".join(lines)
 
 
@@ -183,9 +188,7 @@ def op_add_helper(repo: Path, rng: random.Random, rel: Path) -> Change | None:
     if not _is_production(rel):
         return None
     module = module_of(rel)
-    pool = library.HELPERS.get(module)
-    if not pool:
-        return None
+    pool = library.HELPERS.get(module, []) + library.helper_snippets()
     candidates = [(n, s) for n, s in pool if not has_name(repo, rel, n)]
     if not candidates:
         return None
@@ -199,9 +202,7 @@ def op_add_constant(repo: Path, rng: random.Random, rel: Path) -> Change | None:
     if not _is_production(rel):
         return None
     module = module_of(rel)
-    pool = library.CONSTANTS.get(module)
-    if not pool:
-        return None
+    pool = library.CONSTANTS.get(module, []) + library.constant_snippets(module)
     candidates = [(n, v) for n, v in pool if not has_name(repo, rel, n)]
     if not candidates:
         return None
@@ -215,9 +216,7 @@ def op_add_validation(repo: Path, rng: random.Random, rel: Path) -> Change | Non
     if not _is_production(rel):
         return None
     module = module_of(rel)
-    pool = library.VALIDATORS.get(module)
-    if not pool:
-        return None
+    pool = library.VALIDATORS.get(module, []) + library.validator_snippets()
     candidates = [(n, s) for n, s in pool if not has_name(repo, rel, n)]
     if not candidates:
         return None
@@ -227,7 +226,9 @@ def op_add_validation(repo: Path, rng: random.Random, rel: Path) -> Change | Non
 
 
 def op_add_docstring(repo: Path, rng: random.Random, rel: Path) -> Change | None:
-    """Expand the docstring of a function that already has one."""
+    """Expand the docstring of a production function that already has one."""
+    if not _is_production(rel):
+        return None
     funcs = [f for f in function_index(repo, rel) if f["docstring"] and not f["name"].startswith("_")]
     if not funcs:
         return None
@@ -239,6 +240,8 @@ def op_add_docstring(repo: Path, rng: random.Random, rel: Path) -> Change | None
     if not (isinstance(doc_node, ast.Expr) and isinstance(doc_node.value, ast.Constant) and isinstance(doc_node.value.value, str)):
         return None
     new_doc = _enhanced_docstring(func)
+    if new_doc is None:
+        return None
     indent = "    "
     doc_lines = [indent + '"""', *[indent + line for line in new_doc.splitlines()], indent + '"""']
     replace_line_range(repo, rel, doc_node.lineno, doc_node.end_lineno, doc_lines)
@@ -246,7 +249,9 @@ def op_add_docstring(repo: Path, rng: random.Random, rel: Path) -> Change | None
 
 
 def op_add_type_hint(repo: Path, rng: random.Random, rel: Path) -> Change | None:
-    """Add type hints to a function whose signature lacks some."""
+    """Add type hints to a production function whose signature lacks some."""
+    if not _is_production(rel):
+        return None
     funcs = _simple_funcs(function_index(repo, rel))
     source = _source_of(repo, rel)
     tree = ast.parse(source)
@@ -273,33 +278,35 @@ def op_add_type_hint(repo: Path, rng: random.Random, rel: Path) -> Change | None
 
 
 def op_change_default(repo: Path, rng: random.Random, rel: Path) -> Change | None:
-    """Tweak a numeric default value of a function parameter."""
+    """Tweak a numeric default value of a production function parameter."""
+    if not _is_production(rel):
+        return None
     simple_names = {f["name"] for f in _simple_funcs(function_index(repo, rel))}
     source = _source_of(repo, rel)
     tree = ast.parse(source)
-    candidates: list[tuple[ast.FunctionDef, ast.Constant]] = []
+    candidates: list[tuple[ast.FunctionDef, ast.Constant, int]] = []
     for node in tree.body:
         if not isinstance(node, ast.FunctionDef) or node.name not in simple_names:
             continue
-        for default in node.args.defaults:
+        for index, default in enumerate(node.args.defaults):
             if isinstance(default, ast.Constant) and isinstance(default.value, (int, float)) and not isinstance(default.value, bool):
-                candidates.append((node, default))
+                candidates.append((node, default, index))
     if not candidates:
         return None
-    node, default_node = rng.choice(candidates)
+    node, default_node, default_index = rng.choice(candidates)
     args = copy.deepcopy(node.args)
     old_value = default_node.value
     new_value = rng.choice([1, 2, 5]) if old_value == 0 else old_value * rng.choice([2, 2, 3])
-    for default in args.defaults:
-        if isinstance(default, ast.Constant) and default.value == old_value:
-            default.value = new_value
+    args.defaults[default_index].value = new_value
     func = next(f for f in function_index(repo, rel) if f["name"] == node.name)
     replace_line_range(repo, rel, func["lineno"], func["lineno"], [_signature_line(node.name, args, node.returns)])
     return Change(op="change_default", files=[rel], module=module_of(rel), name=node.name, detail=node.name)
 
 
 def op_add_parameter(repo: Path, rng: random.Random, rel: Path) -> Change | None:
-    """Append a new optional parameter (with default) to a simple function."""
+    """Append a new optional parameter (with default) to a simple production function."""
+    if not _is_production(rel):
+        return None
     funcs = [f for f in _simple_funcs(function_index(repo, rel)) if not f["name"].startswith("_")]
     if not funcs:
         return None
@@ -357,12 +364,59 @@ def op_reorder_imports(repo: Path, rng: random.Random, rel: Path) -> Change | No
     lines = source.splitlines()
     start = imports[0].lineno
     end = imports[-1].end_lineno
-    block = lines[start - 1 : end]
-    sorted_block = sorted(line for line in block if line.strip())
+    block = [line for line in lines[start - 1 : end] if line.strip()]
+    future = [line for line in block if line.startswith("from __future__")]
+    sorted_block = future + sorted(line for line in block if not line.startswith("from __future__"))
     if not sorted_block or block == sorted_block:
         return None
     replace_line_range(repo, rel, start, end, sorted_block)
     return Change(op="reorder_imports", files=[rel], module=module_of(rel), name="", detail="imports")
+
+
+def op_tweak_literal(repo: Path, rng: random.Random, rel: Path) -> Change | None:
+    """Nudge a module-level numeric or bool constant to a nearby value."""
+    if not _is_production(rel):
+        return None
+    try:
+        tree = ast.parse(_source_of(repo, rel))
+    except SyntaxError:
+        return None
+    candidates: list[tuple[str, int, int, int | float | bool]] = []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        if not isinstance(node.targets[0], ast.Name):
+            continue
+        name = node.targets[0].id
+        value = node.value
+        if name.startswith("__"):
+            continue
+        if isinstance(value, ast.Constant) and isinstance(value.value, (int, float, bool)):
+            candidates.append((name, node.lineno, node.end_lineno, value.value))
+    if not candidates:
+        return None
+    name, lineno, end_lineno, old = rng.choice(candidates)
+    lines = read_lines(repo, rel)
+    if isinstance(old, bool):
+        new: int | float | bool = not old
+    elif isinstance(old, float):
+        new = round(old + rng.choice([-1, -0.5, 0.5, 1]), 3)
+    else:
+        new = max(1, int(old) + rng.choice([-3, -2, -1, 1, 2, 3]))
+    if new == old:
+        return None
+    line = lines[lineno - 1]
+    updated, count = re.subn(
+        rf"(\b{re.escape(name)}\s*=\s*){re.escape(repr(old))}\b",
+        rf"\g<1>{repr(new)}",
+        line,
+        count=1,
+    )
+    if count == 0:
+        return None  # value not a plain literal on that line; skip rather than mangle
+    lines[lineno - 1] = updated
+    write_lines(repo, rel, lines)
+    return Change(op="tweak_literal", files=[rel], module=module_of(rel), name=name, detail=name)
 
 
 def op_cleanup_whitespace(repo: Path, rng: random.Random, rel: Path) -> Change | None:
@@ -386,25 +440,77 @@ def op_cleanup_whitespace(repo: Path, rng: random.Random, rel: Path) -> Change |
 
 
 def op_remove_dead_code(repo: Path, rng: random.Random, rel: Path) -> Change | None:
-    """Delete a private helper that is referenced nowhere else."""
-    funcs = [f for f in function_index(repo, rel) if f["name"].startswith("_") and not f["has_decorators"]]
-    if not funcs:
+    """Delete a private helper or module constant that is referenced nowhere else."""
+    candidates: list[tuple[str, int, int]] = []
+    try:
+        tree = ast.parse(_source_of(repo, rel))
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("_") and not node.decorator_list:
+            candidates.append((node.name, node.lineno, node.end_lineno))
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            name = node.targets[0].id
+            if not name.startswith("__"):
+                candidates.append((name, node.lineno, node.end_lineno))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            name = node.target.id
+            if not name.startswith("__"):
+                candidates.append((name, node.lineno, node.end_lineno))
+    if not candidates:
         return None
     zone = zone_py_files(repo)
-    for func in rng.sample(funcs, len(funcs)):
-        name = func["name"]
-        if any(other != rel and has_name(repo, other, name) for other in zone):
+    for name, lineno, end_lineno in rng.sample(candidates, len(candidates)):
+        referrers = [other for other in zone if other != rel and has_name(repo, other, name)]
+        if any(_is_production(other) for other in referrers):
+            continue  # alive in production code
+        tests = [other for other in referrers if _is_test(other)]
+        # only pair-delete when every covering test is a dedicated test_<name>
+        # function; otherwise dropping the helper would break an unrelated test
+        if any(not _has_dedicated_test(repo, t, name) for t in tests):
             continue
         lines = read_lines(repo, rel)
         whole = "\n".join(lines)
         if len(re.findall(rf"\b{re.escape(name)}\b", whole)) > 1:
-            continue  # referenced elsewhere in the same file (or self-recursive)
-        del lines[func["lineno"] - 1 : func["end_lineno"]]
-        if func["end_lineno"] < len(lines) and lines[func["end_lineno"] - 1] == "":
-            del lines[func["end_lineno"] - 1]
+            continue  # referenced elsewhere in the same file (or self-referential)
+        del lines[lineno - 1 : end_lineno]
+        if end_lineno < len(lines) and lines[end_lineno - 1] == "":
+            del lines[end_lineno - 1]
         write_lines(repo, rel, lines)
-        return Change(op="remove_dead_code", files=[rel], module=module_of(rel), name=name, detail=name)
+        files = [rel]
+        for test_rel in tests:
+            if _drop_test_of(repo, test_rel, name):
+                files.append(test_rel)
+        return Change(op="remove_dead_code", files=files, module=module_of(rel), name=name, detail=name)
     return None
+
+
+def _has_dedicated_test(repo: Path, test_rel: Path, helper: str) -> bool:
+    """True when the test module has a test function for this helper only."""
+    source = _source_of(repo, test_rel)
+    return re.search(rf"\bdef test_{re.escape(helper)}\b", source) is not None
+
+
+def _drop_test_of(repo: Path, test_rel: Path, helper: str) -> bool:
+    """Delete test functions that only cover ``helper``; True when removed."""
+    try:
+        tree = ast.parse(_source_of(repo, test_rel))
+    except SyntaxError:
+        return False
+    victims = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and (node.name == f"test_{helper}" or node.name.startswith(f"test_{helper}_"))
+    ]
+    if not victims:
+        return False
+    lines = read_lines(repo, test_rel)
+    for node in sorted(victims, key=lambda n: n.lineno, reverse=True):
+        del lines[node.lineno - 1 : node.end_lineno]
+        if node.end_lineno < len(lines) and lines[node.end_lineno - 1] == "":
+            del lines[node.end_lineno - 1]
+    write_lines(repo, test_rel, lines)
+    return True
 
 
 # ─── tests / docs / meta ops ────────────────────────────────────────────────
@@ -425,7 +531,7 @@ def op_add_test(repo: Path, rng: random.Random, rel: Path) -> Change | None:
     return Change(op="add_test", files=[rel], module=module, name=name, detail=name)
 
 
-def op_new_test_module(repo: Path, rng: random.Random, rel: Path) -> Change | None:
+def op_new_test_module(repo: Path, rng: random.Random) -> Change | None:
     """Create a test suite for a production module that has none yet."""
     modules: list[str] = []
     for py in zone_py_files(repo):
@@ -437,18 +543,38 @@ def op_new_test_module(repo: Path, rng: random.Random, rel: Path) -> Change | No
     if not modules:
         return None
     module = rng.choice(modules)
-    funcs = [f["name"] for f in function_index(repo, Path("poolhall") / f"{module}.py") if not f["name"].startswith("_")]
+    funcs = [f for f in function_index(repo, Path("poolhall") / f"{module}.py") if not f["name"].startswith("_")]
     if not funcs:
         return None
     test_rel = test_file_for(module)
-    names = ", ".join(f'"{n}"' for n in funcs[:6])
-    content = library.NEW_TEST_TEMPLATE.format(module=module, names=names)
+    content = _test_source(module, funcs)
     (repo / test_rel).parent.mkdir(parents=True, exist_ok=True)
     (repo / test_rel).write_text(content, encoding="utf-8")
     return Change(op="new_test_module", files=[test_rel], module=module, name=module, detail=module)
 
 
-def op_new_module(repo: Path, rng: random.Random, rel: Path) -> Change | None:
+def _test_source(module: str, funcs: list[dict]) -> str:
+    """Build a test module: execute zero-arg public functions, assert the rest callable."""
+    lines = [
+        f'"""Tests for the {module} module."""',
+        "",
+        "from __future__ import annotations",
+        "",
+        f"import poolhall.{module} as mod",
+    ]
+    for func in funcs:
+        lines.append("")
+        if not func["args"] and not func["kwonly"] and not func["has_vararg"]:
+            lines.append(f"def test_{func['name']}():")
+            lines.append(f"    result = mod.{func['name']}()")
+            lines.append("    assert result is not None")
+        else:
+            lines.append(f"def test_{func['name']}_exists():")
+            lines.append(f"    assert callable(mod.{func['name']})")
+    return "\n".join(lines) + "\n"
+
+
+def op_new_module(repo: Path, rng: random.Random) -> Change | None:
     """Create a brand-new small module from the fixture pool."""
     available = [name for name in library.NEW_MODULES if not (repo / name).exists()]
     if not available:
@@ -460,7 +586,7 @@ def op_new_module(repo: Path, rng: random.Random, rel: Path) -> Change | None:
     return Change(op="new_module", files=[rel_path], module=rel_path.stem, name=rel_path.stem, detail=rel_path.stem)
 
 
-def op_update_readme(repo: Path, rng: random.Random, rel: Path) -> Change | None:
+def op_update_readme(repo: Path, rng: random.Random) -> Change | None:
     """Append a README section that is not already present."""
     rel = Path("README.md")
     if not (repo / rel).exists():
@@ -474,7 +600,7 @@ def op_update_readme(repo: Path, rng: random.Random, rel: Path) -> Change | None
     return Change(op="update_readme", files=[rel], module="", name="", detail=heading.lstrip("#").strip().lower())
 
 
-def op_version_bump(repo: Path, rng: random.Random, rel: Path) -> Change | None:
+def op_version_bump(repo: Path, rng: random.Random) -> Change | None:
     """Bump the version in pyproject.toml."""
     rel = Path("pyproject.toml")
     if not (repo / rel).exists():
@@ -495,7 +621,10 @@ def op_version_bump(repo: Path, rng: random.Random, rel: Path) -> Change | None:
 
 # ─── registry ───────────────────────────────────────────────────────────────
 
-FILE_OPS: dict[str, object] = {
+FileOp = Callable[[Path, random.Random, Path], Change | None]
+MetaOp = Callable[[Path, random.Random], Change | None]
+
+FILE_OPS: dict[str, FileOp] = {
     "add_helper": op_add_helper,
     "add_constant": op_add_constant,
     "add_validation": op_add_validation,
@@ -507,10 +636,11 @@ FILE_OPS: dict[str, object] = {
     "reorder_imports": op_reorder_imports,
     "cleanup_whitespace": op_cleanup_whitespace,
     "remove_dead_code": op_remove_dead_code,
+    "tweak_literal": op_tweak_literal,
     "add_test": op_add_test,
 }
 
-META_OPS: dict[str, object] = {
+META_OPS: dict[str, MetaOp] = {
     "new_module": op_new_module,
     "new_test_module": op_new_test_module,
     "update_readme": op_update_readme,
@@ -518,7 +648,7 @@ META_OPS: dict[str, object] = {
 }
 
 FILE_WEIGHTS: dict[str, int] = {
-    "add_helper": 16,
+    "add_helper": 6,
     "add_docstring": 10,
     "add_type_hint": 9,
     "add_test": 9,
@@ -528,8 +658,8 @@ FILE_WEIGHTS: dict[str, int] = {
     "cleanup_whitespace": 5,
     "change_default": 5,
     "add_parameter": 5,
-    "remove_dead_code": 4,
-    "add_logging": 3,
+    "remove_dead_code": 10,
+    "tweak_literal": 5,
 }
 
 META_WEIGHTS: dict[str, int] = {
@@ -542,9 +672,9 @@ META_WEIGHTS: dict[str, int] = {
 
 def try_file_op(repo: Path, rng: random.Random, op: str, rel: Path) -> Change | None:
     """Attempt one file-level op; returns None when not applicable."""
-    return FILE_OPS[op](repo, rng, rel)  # type: ignore[operator]
+    return FILE_OPS[op](repo, rng, rel)
 
 
 def try_meta_op(repo: Path, rng: random.Random, op: str) -> Change | None:
     """Attempt one meta-level op."""
-    return META_OPS[op](repo, rng, None)  # type: ignore[operator]
+    return META_OPS[op](repo, rng)

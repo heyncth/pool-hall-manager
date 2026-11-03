@@ -30,11 +30,45 @@ TEMPLATES: dict[str, tuple[str, list[str]]] = {
     "new_module": ("feat", ["add {name} module", "add {name} module with helpers"]),
     "new_test_module": ("test", ["add {name} test suite", "add tests for {name} module"]),
     "cleanup_whitespace": ("style", ["trim trailing whitespace", "clean up whitespace"]),
+    "tweak_literal": ("fix", ["tune {name} literal", "adjust {name} value", "fix {name} constant"]),
+    "companion": ("test", ["cover {name} with tests"]),
+}
+
+# Late-evening (>=20:00) fatigue pool: short, bare, sometimes lazy. Small
+# baseline chance at any hour because tired messages happen at work too.
+CASUAL = ("fix bug", "update", "wip", "typo", "small fix", "cleanup", "fix build", "tweak")
+
+CASUAL_LATE_P = 0.40
+CASUAL_ANYTIME_P = 0.05
+BODY_P = 0.15
+
+BODIES: dict[str, list[str]] = {
+    "feat": ["part of the ongoing table manager cleanup"],
+    "fix": ["edge case showed up while testing the cli"],
+    "docs": ["make the public API easier to follow"],
+    "chore": ["keep the history consistent"],
+    "style": ["pure formatting, no behaviour change"],
+    "test": ["guard the behaviour before the next change"],
+    "refactor": ["same behaviour, clearer structure"],
 }
 
 
-def make(rng: random.Random, op: str, module: str, name: str, detail: str, version: str | None, history: list[str]) -> str:
-    """Build a conventional commit message for the given operation."""
+def make(rng: random.Random, op: str, module: str, name: str, detail: str, version: str | None, history: list[str], late: bool = False) -> str:
+    """Build a commit message: conventional, occasionally casual when tired."""
+    message = _conventional(rng, op, module, name, detail, version, history)
+    casual_p = CASUAL_LATE_P if late else CASUAL_ANYTIME_P
+    if rng.random() < casual_p:
+        options = [c for c in CASUAL if c not in history] or list(CASUAL)
+        message = rng.choice(options)
+    elif rng.random() < BODY_P:
+        ctype = type_of(op)
+        bodies = BODIES.get(ctype)
+        if bodies:
+            message = message + "\n\n" + rng.choice(bodies)
+    return message
+
+
+def _conventional(rng: random.Random, op: str, module: str, name: str, detail: str, version: str | None, history: list[str]) -> str:
     if op not in TEMPLATES:
         return f"chore: update {module}"
     ctype, templates = TEMPLATES[op]

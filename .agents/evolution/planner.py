@@ -22,9 +22,20 @@ MAX_FILES = 40  # new files are no longer created at this size
 TYPE_STREAK_LIMIT = 3  # never run the same commit type 4 times in a row
 
 
-def plan(rng: random.Random, repo: Path, recent_files: list[str], recent_types: list[str], touched_today: list[str]) -> mutation.Change | None:
-    """Produce one change, or None when nothing is applicable right now."""
+def plan(rng: random.Random, repo: Path, recent_files: list[str], recent_types: list[str], touched_today: list[str], file_hint: str | None = None) -> mutation.Change | None:
+    """Produce one change, or None when nothing is applicable right now.
+
+    ``file_hint`` forces the next attempt onto one specific file (companion
+    pairing: a helper commit schedules its own test commit).
+    """
     zone = mutation.zone_py_files(repo)
+
+    if file_hint is not None:
+        rel = Path(file_hint)
+        if rel.exists():
+            change = _try_named_op(rng, repo, rel, recent_types, "add_test")
+            if change is not None:
+                return change
 
     if rng.random() < 0.12:
         change = _try_meta(rng, repo, zone, recent_types)
@@ -41,37 +52,47 @@ def plan(rng: random.Random, repo: Path, recent_files: list[str], recent_types: 
     return None
 
 
-def _try_meta(rng: random.Random, repo: Path, zone: list[Path], recent_types: list[str]) -> mutation.Change | None:
-    names = list(mutation.META_WEIGHTS)
-    if len(zone) >= MAX_FILES:
-        names = [n for n in names if n not in ("new_module", "new_test_module")]
-    if not names:
+def _try_named_op(rng: random.Random, repo: Path, rel: Path, recent_types: list[str], op: str) -> mutation.Change | None:
+    if _would_streak(op, recent_types):
         return None
-    weights = [mutation.META_WEIGHTS[n] for n in names]
-    for _ in range(len(names)):
-        op = rng.choices(names, weights=weights, k=1)[0]
-        idx = names.index(op)
-        names.pop(idx)
-        weights.pop(idx)
+    return mutation.try_file_op(repo, rng, op, rel)
+
+
+def _try_meta(rng: random.Random, repo: Path, zone: list[Path], recent_types: list[str]) -> mutation.Change | None:
+    options = dict(mutation.META_WEIGHTS)
+    if len(zone) >= MAX_FILES:
+        for name in ("new_module", "new_test_module"):
+            options.pop(name, None)
+    if not options:
+        return None
+
+    def attempt(op: str) -> mutation.Change | None:
         if _would_streak(op, recent_types):
-            continue
-        change = mutation.try_meta_op(repo, rng, op)
-        if change is not None:
-            return change
-    return None
+            return None
+        return mutation.try_meta_op(repo, rng, op)
+
+    return _pick_change(rng, options, attempt)
 
 
 def _try_file_ops(rng: random.Random, repo: Path, rel: Path, recent_types: list[str]) -> mutation.Change | None:
-    names = list(mutation.FILE_WEIGHTS)
-    weights = [mutation.FILE_WEIGHTS[n] for n in names]
-    for _ in range(len(names)):
-        op = rng.choices(names, weights=weights, k=1)[0]
-        idx = names.index(op)
+    def attempt(op: str) -> mutation.Change | None:
+        if _would_streak(op, recent_types):
+            return None
+        return mutation.try_file_op(repo, rng, op, rel)
+
+    return _pick_change(rng, mutation.FILE_WEIGHTS, attempt)
+
+
+def _pick_change(rng: random.Random, options: dict[str, int], attempt) -> mutation.Change | None:
+    """Weighted pick without replacement; each op is attempted at most once."""
+    names = list(options)
+    weights = [options[n] for n in names]
+    while names:
+        name = rng.choices(names, weights=weights, k=1)[0]
+        idx = names.index(name)
         names.pop(idx)
         weights.pop(idx)
-        if _would_streak(op, recent_types):
-            continue
-        change = mutation.try_file_op(repo, rng, op, rel)
+        change = attempt(name)
         if change is not None:
             return change
     return None
